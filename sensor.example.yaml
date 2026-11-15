@@ -1,0 +1,9 @@
+# Copy to sensor.yaml (gitignored) to override defaults.
+backend_url: http://127.0.0.1:8787
+# Probing a stdio MCP server SPAWNS its command on this machine. Off unless you opt in.
+probe_stdio: false
+probe_stdio_allowlist: []      # e.g. [github, postgres] - only these get spawned when probe_stdio is true
+probe_timeout_s: 5
+debounce_s: 0.5
+process_poll_s: 2
+project_roots: []              # extra project folders to watch for .cursor/mcp.json, .vscode/mcp.json, .mcp.json

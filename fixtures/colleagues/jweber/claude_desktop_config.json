@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "outlook": {
+      "command": "npx",
+      "args": ["-y", "@softeria/ms-365-mcp-server", "--org-mode"]
+    },
+    "hubspot": {
+      "command": "npx",
+      "args": ["-y", "@hubspot/mcp-server"],
+      "env": { "PRIVATE_APP_ACCESS_TOKEN": "fake-hubspot-private-app-token" }
+    }
+  }
+}

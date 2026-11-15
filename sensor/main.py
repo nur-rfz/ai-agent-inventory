@@ -14,6 +14,7 @@ from .mcp_watcher import McpConfigWatcher
 from .netattr import NetAttributor
 from .paths import report
 from .process_watcher import ProcessWatcher
+from .schedules import ScheduleWatcher
 
 
 def main() -> None:
@@ -27,8 +28,11 @@ def main() -> None:
     net = NetAttributor(get_catalog(cfg.catalog_path))
     procs = ProcessWatcher(emitter, net, mcp.all_servers, cfg.process_poll_s)
 
+    scheds = ScheduleWatcher(emitter)
+
     mcp.start()
     procs.start()
+    scheds.start()
     print(f"watching {len(mcp.locations)} config locations; polling processes every {cfg.process_poll_s}s", flush=True)
 
     stop = threading.Event()
@@ -37,6 +41,7 @@ def main() -> None:
     stop.wait()
     mcp.stop()
     procs.stop()
+    scheds.stop()
     emitter.stop()
 
 

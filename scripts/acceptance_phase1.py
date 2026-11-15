@@ -72,7 +72,7 @@ def main() -> int:
     results: list[tuple[str, bool, str]] = []
     try:
         procs.append(subprocess.Popen([PY, "-m", "uvicorn", "backend.app:app", "--port", str(a.backend_port),
-                                       "--log-level", "warning"], cwd=ROOT, env=env, stdout=log, stderr=log))
+                                       "--log-level", "warning", "--timeout-graceful-shutdown", "1"], cwd=ROOT, env=env, stdout=log, stderr=log))
         if not port_open(8931):
             procs.append(subprocess.Popen([PY, "scripts/demo_mcp_server.py"], cwd=ROOT, env=env, stdout=log, stderr=log))
         wait_for(lambda: port_open(a.backend_port) and port_open(8931) or None, 15)

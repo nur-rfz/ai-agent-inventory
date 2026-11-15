@@ -16,11 +16,13 @@
 
 ## Signals (the only thing that crosses the wire)
 `{id, ts, source, host, user, kind, raw, fingerprint}`. `kind` is one of
-`mcp_config | process | net_conn | mcp_probe | code_import | oauth_grant | api_key`.
+`mcp_config | process | net_conn | mcp_probe | code_import | schedule | oauth_grant | api_key`.
 `fingerprint` says *what the signal is about*. For MCP servers it is
 sha256(command + redacted args) or sha256(redacted url), so the config entry, the
 running process and the probe result for the same server share one fingerprint.
-That shared value is how Phase 3 joins them into one Agent.
+That shared value is how Phase 3 joins them into one Agent. Scripts use
+sha256("script", absolute path), shared by the code scan, the cron/launchd entry and
+the running process.
 
 ## Sensor (Phase 1)
 | Watcher | How | Emits |
@@ -29,7 +31,8 @@ That shared value is how Phase 3 joins them into one Agent.
 | Probe | HTTP/SSE servers: `initialize` + `tools/list` via official `mcp` SDK, 5s timeout. stdio: only if `probe_stdio: true` (consent), else a `skipped` signal | `mcp_probe` with tools + schemas |
 | Processes | psutil every 2s; MCP-looking cmdlines (runtime + "mcp", or matches a configured server's args), or scripts whose source imports an AI SDK; parent chain → surface (Cursor, Claude Code, …) | `process started/exited` |
 | Network | outbound connections of tracked processes; IP → system via forward-resolved catalog hosts, reverse DNS for wildcards, well-known ports; psutil → `lsof` → `unavailable` | `net_conn` |
-| Code scan | `python -m sensor.codescan <dir> --post`: SDK imports, business SDKs, env var **names** | `code_import` |
+| Code scan | `python -m sensor.codescan <dir> --post`: SDK imports, business SDKs, env var **names**, visible prompt literals + module docstring | `code_import` |
+| Schedules | `crontab -l` + macOS `~/Library/LaunchAgents/*.plist` every 60s; script paths resolved (incl. `cd dir &&`) | `schedule` (the `triggers` evidence) |
 
 Config locations are OS-specific (`sensor/paths.py`; run `python -m sensor.paths` to see
 what was found). Claude Code's `~/.claude.json` also lists project folders, which are
@@ -48,3 +51,18 @@ added to the watch list automatically.
 Tests: `tests/test_redact.py` (token shapes, URLs, args, parsed configs, structural ids
 preserved). `scripts/acceptance_phase1.py` greps the API output and the raw SQLite
 bytes for the secrets it planted.
+
+## Simulated org (Phase 2)
+`fixtures/` holds six colleagues' real artifacts (MCP configs, scripts, crontabs) plus
+vendor-shaped identity exports. `fixtures/build.py` runs the **sensor's own code** over
+those artifacts, so fixture signals are byte-for-byte what a live sensor would send.
+`backend/identity.py` turns the exports into signals (Entra consents and app roles,
+Google OAuth `authorize`, OpenAI key and service-account creation); the same code would
+run on real exports. `scripts/seed.py --replay` streams everything in about 30s, with
+timestamps shifted by whole weeks to end just before "now". See `fixtures/README.md`.
+
+```
+identity exports ──▶ backend/identity.py ─┐
+fixtures/colleagues ─▶ fixtures/build.py ─┴─▶ scripts/seed.py ──POST /api/signals──▶ backend
+(real sensor code)      (signals.jsonl)        (week shift, replay pacing)
+```

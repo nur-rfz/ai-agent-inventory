@@ -1,0 +1,158 @@
+{
+  "@odata.context": "https://graph.microsoft.com/v1.0/$metadata#auditLogs/directoryAudits",
+  "value": [
+    {
+      "id": "Directory_4c1f0b7e-langdock-admin-consent",
+      "category": "ApplicationManagement",
+      "correlationId": "2b0d4a6e-0d43-4f41-9f3e-1a7b6f0c1001",
+      "result": "success",
+      "resultReason": "",
+      "activityDisplayName": "Consent to application",
+      "activityDateTime": "2026-09-01T09:12:44.000Z",
+      "loggedByService": "Core Directory",
+      "operationType": "Assign",
+      "initiatedBy": {"user": {"id": "u-itadmin", "userPrincipalName": "it.admin@nordlicht.example", "ipAddress": "10.0.0.20"}, "app": null},
+      "targetResources": [
+        {
+          "id": "sp-langdock",
+          "displayName": "Langdock",
+          "type": "ServicePrincipal",
+          "modifiedProperties": [
+            {"displayName": "ConsentContext.IsAdminConsent", "oldValue": null, "newValue": "\"True\""},
+            {"displayName": "ConsentContext.OnBehalfOfAll", "oldValue": null, "newValue": "\"True\""},
+            {"displayName": "ConsentAction.Permissions", "oldValue": null, "newValue": "\"[] => [[Id: g1, ClientId: sp-langdock, PrincipalId: , ResourceId: sp-msgraph, ConsentType: AllPrincipals, Scope:  openid profile email User.Read offline_access, ]]; \""},
+            {"displayName": "TargetId.ServicePrincipalNames", "oldValue": null, "newValue": "\"6f1c2e1a-0000-4000-8000-langdock0001\""}
+          ]
+        }
+      ],
+      "additionalDetails": [{"key": "AppId", "value": "6f1c2e1a-0000-4000-8000-langdock0001"}]
+    },
+    {
+      "id": "Directory_9a3e-ar-inbox-summarizer-add-app",
+      "category": "ApplicationManagement",
+      "correlationId": "2b0d4a6e-0d43-4f41-9f3e-1a7b6f0c1002",
+      "result": "success",
+      "activityDisplayName": "Add application",
+      "activityDateTime": "2026-10-05T14:03:10.000Z",
+      "loggedByService": "Core Directory",
+      "operationType": "Add",
+      "initiatedBy": {"user": {"id": "u-praman", "userPrincipalName": "priya.raman@nordlicht.example", "ipAddress": "10.0.3.41"}, "app": null},
+      "targetResources": [
+        {"id": "app-ar-inbox", "displayName": "AR Inbox Summarizer", "type": "Application",
+         "modifiedProperties": [{"displayName": "AppId", "oldValue": null, "newValue": "\"a7d1e9b0-0000-4000-8000-arinbox00001\""}]}
+      ],
+      "additionalDetails": [{"key": "AppId", "value": "a7d1e9b0-0000-4000-8000-arinbox00001"}]
+    },
+    {
+      "id": "Directory_9a3e-ar-inbox-summarizer-secret",
+      "category": "ApplicationManagement",
+      "correlationId": "2b0d4a6e-0d43-4f41-9f3e-1a7b6f0c1003",
+      "result": "success",
+      "activityDisplayName": "Update application – Certificates and secrets management",
+      "activityDateTime": "2026-10-05T14:05:52.000Z",
+      "loggedByService": "Core Directory",
+      "operationType": "Update",
+      "initiatedBy": {"user": {"id": "u-praman", "userPrincipalName": "priya.raman@nordlicht.example", "ipAddress": "10.0.3.41"}, "app": null},
+      "targetResources": [
+        {"id": "app-ar-inbox", "displayName": "AR Inbox Summarizer", "type": "Application",
+         "modifiedProperties": [{"displayName": "KeyDescription", "oldValue": "[]", "newValue": "[\"[KeyIdentifier=3f2a,KeyType=Password,KeyUsage=Verify,DisplayName=cron-script]\"]"}]}
+      ],
+      "additionalDetails": [{"key": "AppId", "value": "a7d1e9b0-0000-4000-8000-arinbox00001"}]
+    },
+    {
+      "id": "Directory_9a3e-ar-inbox-summarizer-approle",
+      "category": "ApplicationManagement",
+      "correlationId": "2b0d4a6e-0d43-4f41-9f3e-1a7b6f0c1004",
+      "result": "success",
+      "activityDisplayName": "Add app role assignment to service principal",
+      "activityDateTime": "2026-10-06T08:47:31.000Z",
+      "loggedByService": "Core Directory",
+      "operationType": "Assign",
+      "initiatedBy": {"user": {"id": "u-itadmin", "userPrincipalName": "it.admin@nordlicht.example", "ipAddress": "10.0.0.20"}, "app": null},
+      "targetResources": [
+        {"id": "sp-msgraph", "displayName": "Microsoft Graph", "type": "ServicePrincipal",
+         "modifiedProperties": [
+           {"displayName": "AppRole.Value", "oldValue": null, "newValue": "\"Mail.Read\""},
+           {"displayName": "ServicePrincipal.DisplayName", "oldValue": null, "newValue": "\"AR Inbox Summarizer\""},
+           {"displayName": "ServicePrincipal.AppId", "oldValue": null, "newValue": "\"a7d1e9b0-0000-4000-8000-arinbox00001\""}
+         ]}
+      ],
+      "additionalDetails": [{"key": "AppId", "value": "a7d1e9b0-0000-4000-8000-arinbox00001"}]
+    },
+    {
+      "id": "Directory_5b2c-ms365-mcp-user-consent",
+      "category": "ApplicationManagement",
+      "correlationId": "2b0d4a6e-0d43-4f41-9f3e-1a7b6f0c1005",
+      "result": "success",
+      "activityDisplayName": "Consent to application",
+      "activityDateTime": "2026-09-29T10:21:05.000Z",
+      "loggedByService": "Core Directory",
+      "operationType": "Assign",
+      "initiatedBy": {"user": {"id": "u-jweber", "userPrincipalName": "jonas.weber@nordlicht.example", "ipAddress": "10.0.2.17"}, "app": null},
+      "targetResources": [
+        {
+          "id": "sp-ms365-mcp",
+          "displayName": "ms-365-mcp-server",
+          "type": "ServicePrincipal",
+          "modifiedProperties": [
+            {"displayName": "ConsentContext.IsAdminConsent", "oldValue": null, "newValue": "\"False\""},
+            {"displayName": "ConsentContext.OnBehalfOfAll", "oldValue": null, "newValue": "\"False\""},
+            {"displayName": "ConsentAction.Permissions", "oldValue": null, "newValue": "\"[] => [[Id: g2, ClientId: sp-ms365-mcp, PrincipalId: u-jweber, ResourceId: sp-msgraph, ConsentType: Principal, Scope:  Mail.ReadWrite Mail.Send Calendars.Read User.Read offline_access, ]]; \""},
+            {"displayName": "TargetId.ServicePrincipalNames", "oldValue": null, "newValue": "\"084a3e9f-a9f4-43f7-89f9-d229cf97853e\""}
+          ]
+        }
+      ],
+      "additionalDetails": [{"key": "AppId", "value": "084a3e9f-a9f4-43f7-89f9-d229cf97853e"}, {"key": "User-Agent", "value": "Mozilla/5.0 (Macintosh)"}]
+    },
+    {
+      "id": "Directory_7d4e-chatgpt-sharepoint-consent",
+      "category": "ApplicationManagement",
+      "correlationId": "2b0d4a6e-0d43-4f41-9f3e-1a7b6f0c1006",
+      "result": "success",
+      "activityDisplayName": "Consent to application",
+      "activityDateTime": "2026-10-20T16:40:12.000Z",
+      "loggedByService": "Core Directory",
+      "operationType": "Assign",
+      "initiatedBy": {"user": {"id": "u-lhoffmann", "userPrincipalName": "lena.hoffmann@nordlicht.example", "ipAddress": "10.0.2.33"}, "app": null},
+      "targetResources": [
+        {
+          "id": "sp-chatgpt",
+          "displayName": "ChatGPT",
+          "type": "ServicePrincipal",
+          "modifiedProperties": [
+            {"displayName": "ConsentContext.IsAdminConsent", "oldValue": null, "newValue": "\"False\""},
+            {"displayName": "ConsentContext.OnBehalfOfAll", "oldValue": null, "newValue": "\"False\""},
+            {"displayName": "ConsentAction.Permissions", "oldValue": null, "newValue": "\"[] => [[Id: g3, ClientId: sp-chatgpt, PrincipalId: u-lhoffmann, ResourceId: sp-msgraph, ConsentType: Principal, Scope:  Files.Read.All Sites.Read.All User.Read offline_access, ]]; \""},
+            {"displayName": "TargetId.ServicePrincipalNames", "oldValue": null, "newValue": "\"e0476654-c1d5-430b-ab80-70cbd947616a\""}
+          ]
+        }
+      ],
+      "additionalDetails": [{"key": "AppId", "value": "e0476654-c1d5-430b-ab80-70cbd947616a"}]
+    },
+    {
+      "id": "Directory_8f5a-fireflies-consent",
+      "category": "ApplicationManagement",
+      "correlationId": "2b0d4a6e-0d43-4f41-9f3e-1a7b6f0c1007",
+      "result": "success",
+      "activityDisplayName": "Consent to application",
+      "activityDateTime": "2026-10-12T07:55:48.000Z",
+      "loggedByService": "Core Directory",
+      "operationType": "Assign",
+      "initiatedBy": {"user": {"id": "u-tbecker", "userPrincipalName": "tom.becker@nordlicht.example", "ipAddress": "10.0.2.51"}, "app": null},
+      "targetResources": [
+        {
+          "id": "sp-fireflies",
+          "displayName": "Fireflies.ai Notetaker",
+          "type": "ServicePrincipal",
+          "modifiedProperties": [
+            {"displayName": "ConsentContext.IsAdminConsent", "oldValue": null, "newValue": "\"False\""},
+            {"displayName": "ConsentContext.OnBehalfOfAll", "oldValue": null, "newValue": "\"False\""},
+            {"displayName": "ConsentAction.Permissions", "oldValue": null, "newValue": "\"[] => [[Id: g4, ClientId: sp-fireflies, PrincipalId: u-tbecker, ResourceId: sp-msgraph, ConsentType: Principal, Scope:  Calendars.Read OnlineMeetings.Read User.Read offline_access, ]]; \""},
+            {"displayName": "TargetId.ServicePrincipalNames", "oldValue": null, "newValue": "\"5c1f8a77-0000-4000-8000-fireflies001\""}
+          ]
+        }
+      ],
+      "additionalDetails": [{"key": "AppId", "value": "5c1f8a77-0000-4000-8000-fireflies001"}]
+    }
+  ]
+}

@@ -1,0 +1,52 @@
+# Simulated IdP directory export (who is behind a laptop user / email).
+# Owner resolution in Phase 3 maps (host, local user) and emails to these people.
+company: Nordlicht GmbH
+domain: nordlicht.example
+people:
+  - id: mpatel
+    name: Maya Patel
+    email: maya.patel@nordlicht.example
+    aliases: [maya.patel@support.nordlicht.example]   # support runs a separate Google Workspace
+    department: Support
+    title: Support Team Lead
+    devices: [{host: mpatel-mbp, user: mpatel, os: macos}]
+  - id: jweber
+    name: Jonas Weber
+    email: jonas.weber@nordlicht.example
+    department: Sales
+    title: Account Executive
+    devices: [{host: jweber-mbp, user: jweber, os: macos}]
+  - id: praman
+    name: Priya Raman
+    email: priya.raman@nordlicht.example
+    department: Finance
+    title: Accounts Receivable Specialist
+    devices: [{host: praman-mbp, user: praman, os: macos}]
+  - id: lhoffmann
+    name: Lena Hoffmann
+    email: lena.hoffmann@nordlicht.example
+    department: Sales
+    title: Revenue Operations Manager
+    devices: [{host: lhoffmann-mbp, user: lhoffmann, os: macos}]
+  - id: tbecker
+    name: Tom Becker
+    email: tom.becker@nordlicht.example
+    department: Sales
+    title: Regional Sales Director DACH
+    devices: [{host: tbecker-mbp, user: tbecker, os: macos}]
+  - id: akim
+    name: Alex Kim
+    email: alex.kim@nordlicht.example
+    department: Engineering
+    title: Senior Backend Engineer
+    devices: [{host: akim-mbp, user: akim, os: macos}, {host: akim-devbox, user: akim, os: linux}]
+  - id: itadmin
+    name: IT Admin
+    email: it.admin@nordlicht.example
+    department: IT
+    title: IT Administrator
+    devices: []
+service_accounts:
+  - id: svc-finance-automation
+    owner: praman
+    description: Created by Finance for "automation scripts"

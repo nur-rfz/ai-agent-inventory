@@ -85,6 +85,19 @@ async def ingest(signals: list[SignalIn]) -> dict:
     return {"stored": len(stored)}
 
 
+@app.post("/api/admin/reset")
+async def reset() -> dict:
+    """Demo helper: wipe all stored data. Local prototype only (no auth by design)."""
+    from sqlmodel import delete
+
+    with session() as s:
+        n = s.exec(select(Signal)).all()
+        s.exec(delete(Signal))
+        s.commit()
+    broker.publish("reset", {})
+    return {"deleted": len(n)}
+
+
 @app.get("/api/signals")
 def list_signals(kind: str | None = None, limit: int = 200) -> list[dict]:
     with session() as s:

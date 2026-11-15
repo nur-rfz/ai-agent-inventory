@@ -94,6 +94,42 @@ def match_server(cmdline: list[str], servers: list[RawServer]) -> RawServer | No
     return best
 
 
+def is_candidate(cmd: list[str]) -> bool:
+    return _base(cmd[0]) in RUNTIMES or any("mcp" in c.lower() for c in cmd[:3])
+
+
+def process_record(info: dict, cmd: list[str], chain: list[dict], servers: list[RawServer],
+                   script: str | None, sdk: dict | None) -> dict:
+    """The `process` signal body. Pure: shared by the live watcher and the fixture builder."""
+    exe = _base(cmd[0])
+    matched = match_server(cmd, servers)
+    looks_mcp = matched is not None or any("mcp" in c.lower() for c in cmd)
+    if matched:
+        fp = matched.fingerprint
+    elif script:  # same key as codescan + schedules -> joins into one agent
+        fp = fingerprint("script", script)
+    else:
+        fp = fingerprint("process", exe, redact_args(cmd[1:]))
+    return {
+        "event": "started",
+        "pid": info["pid"],
+        "name": info["name"],
+        "exe": exe,
+        "cmdline": redact_args(cmd),
+        "started_at": info.get("create_time"),
+        "username": info.get("username"),
+        "parent_chain": chain,
+        "surface": surface_from_chain(chain) or (matched.client if matched else None),
+        "category": "mcp_server" if looks_mcp else "ai_script",
+        "server_name": matched.name if matched else None,
+        "server_fingerprint": matched.fingerprint if matched else None,
+        "config_client": matched.client if matched else None,
+        "script": script,
+        "sdk_imports": sdk,
+        "fingerprint": fp,
+    }
+
+
 class ProcessWatcher:
     def __init__(self, emitter: Emitter, net: NetAttributor, servers: Callable[[], list[RawServer]], poll_s: float = 2.0):
         self.emitter = emitter
@@ -165,37 +201,14 @@ class ProcessWatcher:
 
     def _classify(self, proc: psutil.Process, info: dict, servers: list[RawServer]) -> dict | None:
         cmd = info.get("cmdline") or []
-        if not cmd:
+        if not cmd or not is_candidate(cmd):
             return None
-        exe = _base(cmd[0])
-        if exe not in RUNTIMES and not any("mcp" in c.lower() for c in cmd[:3]):
-            return None
-        matched = match_server(cmd, servers)
-        looks_mcp = matched is not None or any("mcp" in c.lower() for c in cmd)
         script = self._script_path(cmd, proc)
+        looks_mcp = match_server(cmd, servers) is not None or any("mcp" in c.lower() for c in cmd)
         sdk = self._scan_script(script) if script and not looks_mcp else None
         if not looks_mcp and not (sdk and sdk["sdks"]):
             return None
-        chain = parent_chain(proc)
-        fp = matched.fingerprint if matched else fingerprint("process", exe, redact_args(cmd[1:]))
-        return {
-            "event": "started",
-            "pid": info["pid"],
-            "name": info["name"],
-            "exe": exe,
-            "cmdline": redact_args(cmd),
-            "started_at": info.get("create_time"),
-            "username": info.get("username"),
-            "parent_chain": chain,
-            "surface": surface_from_chain(chain) or (matched.client if matched else None),
-            "category": "mcp_server" if looks_mcp else "ai_script",
-            "server_name": matched.name if matched else None,
-            "server_fingerprint": matched.fingerprint if matched else None,
-            "config_client": matched.client if matched else None,
-            "script": script,
-            "sdk_imports": sdk,
-            "fingerprint": fp,
-        }
+        return process_record(info, cmd, parent_chain(proc), servers, script, sdk)
 
     def _script_path(self, cmd: list[str], proc: psutil.Process) -> str | None:
         cwd = _safe(proc.cwd)

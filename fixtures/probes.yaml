@@ -1,0 +1,80 @@
+# What `tools/list` returned on colleagues' machines.
+# Their sensors run with probe_stdio: true + an IT allowlist of known packages, so
+# allowlisted stdio servers were probed; unknown ones (postgres-mcp) were skipped.
+# Remote servers behind OAuth (Sentry, Linear) fail the probe: realistic.
+
+"@gongrzhe/server-gmail-autoauth-mcp":
+  server_info: {name: gmail, version: 1.1.11}
+  tools:
+    - [search_emails, "Searches for emails using Gmail search syntax"]
+    - [read_email, "Retrieves the content of a specific email"]
+    - [send_email, "Sends a new email"]
+    - [draft_email, "Draft a new email"]
+    - [modify_email, "Modifies email labels (move to different folders)"]
+    - [delete_email, "Permanently deletes an email"]
+    - [list_email_labels, "Retrieves all available Gmail labels"]
+    - [batch_modify_emails, "Modifies labels for multiple emails in batches"]
+
+"@softeria/ms-365-mcp-server":
+  server_info: {name: ms-365-mcp-server, version: 0.21.0}
+  tools:
+    - [list-mail-messages, "List messages in the signed-in user's mailbox"]
+    - [list-mail-folder-messages, "List messages in a specific mail folder"]
+    - [get-mail-message, "Get a single mail message with body"]
+    - [send-mail, "Send an email as the signed-in user"]
+    - [create-draft-email, "Create a draft email"]
+    - [move-mail-message, "Move a message to another folder"]
+    - [list-calendar-events, "List events in the user's calendar"]
+    - [search-query, "Search across mail, files and events with Microsoft Search"]
+
+"@hubspot/mcp-server":
+  server_info: {name: hubspot-mcp-server, version: 0.4.0}
+  tools:
+    - [hubspot-get-user-details, "Get details about the authenticated HubSpot user and portal"]
+    - [hubspot-search-objects, "Search CRM objects (contacts, companies, deals) with filters"]
+    - [hubspot-batch-read-objects, "Read multiple CRM objects by id"]
+    - [hubspot-list-associations, "List associations between CRM objects"]
+    - [hubspot-create-engagement, "Create a note or task on a CRM record"]
+    - [hubspot-batch-update-objects, "Update properties on multiple CRM objects"]
+
+"@salesforce/mcp":
+  server_info: {name: salesforce-dx-mcp, version: 0.17.2}
+  tools:
+    - [run_soql_query, "Run a SOQL query against a Salesforce org"]
+    - [list_all_orgs, "List all configured Salesforce orgs"]
+    - [get_username, "Determine the username/alias of the default target org"]
+    - [assign_permission_set, "Assign a permission set to a user in the org"]
+    - [create_record, "Create a record of any sObject type"]
+    - [update_record, "Update fields on an existing record"]
+
+"@modelcontextprotocol/server-slack":
+  server_info: {name: slack-mcp-server, version: 0.6.2}
+  tools:
+    - [slack_list_channels, "List public channels in the workspace"]
+    - [slack_post_message, "Post a new message to a Slack channel"]
+    - [slack_reply_to_thread, "Reply to a specific message thread"]
+    - [slack_add_reaction, "Add a reaction emoji to a message"]
+    - [slack_get_channel_history, "Get recent messages from a channel"]
+    - [slack_get_thread_replies, "Get all replies in a message thread"]
+    - [slack_get_users, "Get a list of all users in the workspace"]
+
+"https://api.githubcopilot.com/mcp/":
+  server_info: {name: github-mcp-server, version: 0.13.0}
+  tools:
+    - [search_code, "Search code across GitHub repositories"]
+    - [get_file_contents, "Get the contents of a file or directory"]
+    - [list_pull_requests, "List pull requests in a repository"]
+    - [create_pull_request, "Create a new pull request"]
+    - [merge_pull_request, "Merge a pull request"]
+    - [create_or_update_file, "Create or update a single file in a repository"]
+    - [list_issues, "List issues in a repository"]
+    - [create_issue, "Create a new issue"]
+
+"https://mcp.sentry.dev/mcp":
+  error: "HTTPStatusError: 401 Unauthorized (OAuth required: server advertises /.well-known/oauth-protected-resource)"
+
+"https://mcp.linear.app/sse":
+  error: "HTTPStatusError: 401 Unauthorized (OAuth required)"
+
+"postgres-mcp":
+  skipped: "not on the stdio probe allowlist"

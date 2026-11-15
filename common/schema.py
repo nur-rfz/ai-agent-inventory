@@ -10,7 +10,7 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
-SignalKind = Literal["mcp_config", "process", "net_conn", "mcp_probe", "code_import", "oauth_grant", "api_key"]
+SignalKind = Literal["mcp_config", "process", "net_conn", "mcp_probe", "code_import", "oauth_grant", "api_key", "schedule"]
 
 
 def now_iso() -> str:

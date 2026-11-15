@@ -74,3 +74,18 @@ def test_process_matching_and_surface():
     assert surface_from_chain(chain) == "cursor"
     assert surface_from_chain([{"name": "claude", "exe": "/usr/local/bin/claude"}]) == "claude_code"
     assert surface_from_chain([{"name": "Claude", "exe": "/Applications/Claude.app/Contents/MacOS/Claude"}]) == "claude_desktop"
+
+
+def test_crontab_parsing_resolves_cd_and_redacts():
+    from sensor.schedules import parse_crontab, schedule_signals
+    text = ("MAILTO=x@y\n# comment\n"
+            "30 7 * * 1-5 cd ~/ar-automation && /usr/bin/python3 summarize_customer_emails.py >> log.txt 2>&1\n"
+            "@hourly /usr/local/bin/backup --password hunter2xyz\n"
+            "0 8 * * 1 /opt/x/.venv/bin/python /opt/x/report.py --token=abc123def\n")
+    jobs = parse_crontab(text, Path("/Users/praman"))
+    assert [j["scripts"] for j in jobs] == [["/Users/praman/ar-automation/summarize_customer_emails.py"], ["/opt/x/report.py"]]
+    assert jobs[0]["cron"] == "30 7 * * 1-5"
+    assert "abc123def" not in jobs[1]["command"]
+    [(raw, fp), _] = schedule_signals(jobs)
+    from common.schema import fingerprint
+    assert fp == fingerprint("script", "/Users/praman/ar-automation/summarize_customer_emails.py")

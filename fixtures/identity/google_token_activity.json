@@ -1,0 +1,46 @@
+{
+  "kind": "admin#reports#activities",
+  "items": [
+    {
+      "kind": "admin#reports#activity",
+      "id": {"time": "2026-09-22T07:58:13.402Z", "uniqueQualifier": "-6714230981234", "applicationName": "token", "customerId": "C03nordl"},
+      "actor": {"email": "maya.patel@support.nordlicht.example", "profileId": "114233007781"},
+      "ipAddress": "10.0.4.12",
+      "events": [
+        {
+          "type": "auth",
+          "name": "authorize",
+          "parameters": [
+            {"name": "client_id", "value": "601233118042-k3v9mcpgmail.apps.googleusercontent.com"},
+            {"name": "app_name", "value": "gmail-mcp (maya personal project)"},
+            {"name": "client_type", "value": "NATIVE_DESKTOP"},
+            {"name": "scope", "multiValue": [
+              "https://www.googleapis.com/auth/gmail.modify",
+              "https://www.googleapis.com/auth/gmail.settings.basic"
+            ]}
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "admin#reports#activity",
+      "id": {"time": "2026-11-02T08:01:40.118Z", "uniqueQualifier": "-6714230981299", "applicationName": "token", "customerId": "C03nordl"},
+      "actor": {"email": "maya.patel@support.nordlicht.example", "profileId": "114233007781"},
+      "ipAddress": "10.0.4.12",
+      "events": [
+        {
+          "type": "auth",
+          "name": "request",
+          "parameters": [
+            {"name": "client_id", "value": "601233118042-k3v9mcpgmail.apps.googleusercontent.com"},
+            {"name": "app_name", "value": "gmail-mcp (maya personal project)"},
+            {"name": "client_type", "value": "NATIVE_DESKTOP"},
+            {"name": "api_name", "value": "gmail"},
+            {"name": "method_name", "value": "gmail.users.messages.list"},
+            {"name": "num_response_bytes", "intValue": "48211"}
+          ]
+        }
+      ]
+    }
+  ]
+}

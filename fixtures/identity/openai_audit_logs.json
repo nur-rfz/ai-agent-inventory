@@ -1,0 +1,29 @@
+{
+  "object": "list",
+  "data": [
+    {
+      "id": "audit_log-fin0001",
+      "type": "project.created",
+      "effective_at": 1791207300,
+      "actor": {"type": "session", "session": {"user": {"id": "user-praman", "email": "priya.raman@nordlicht.example"}, "ip_address": "10.0.3.41"}},
+      "project": {"id": "proj_FinAuto01", "name": "Finance Automation"},
+      "project.created": {"id": "proj_FinAuto01", "data": {"name": "Finance Automation", "title": "Finance Automation"}}
+    },
+    {
+      "id": "audit_log-fin0002",
+      "type": "service_account.created",
+      "effective_at": 1791207420,
+      "actor": {"type": "session", "session": {"user": {"id": "user-praman", "email": "priya.raman@nordlicht.example"}, "ip_address": "10.0.3.41"}},
+      "project": {"id": "proj_FinAuto01", "name": "Finance Automation"},
+      "service_account.created": {"id": "user-svcfinauto", "data": {"role": "member", "name": "svc-finance-automation"}}
+    },
+    {
+      "id": "audit_log-fin0003",
+      "type": "api_key.created",
+      "effective_at": 1791207421,
+      "actor": {"type": "session", "session": {"user": {"id": "user-praman", "email": "priya.raman@nordlicht.example"}, "ip_address": "10.0.3.41"}},
+      "project": {"id": "proj_FinAuto01", "name": "Finance Automation"},
+      "api_key.created": {"id": "key_svcFin8Qx7", "data": {"scopes": ["/v1/*"], "owner": {"type": "service_account", "name": "svc-finance-automation"}, "redacted_value": "sk-svcacct-...Qx7f"}}
+    }
+  ]
+}

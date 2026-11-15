@@ -45,16 +45,43 @@ ENV_NAME = re.compile(
     r"\b([A-Z][A-Z0-9_]*(?:API_KEY|_TOKEN|_SECRET|_KEY|_ENDPOINT|_BASE_URL|_MODEL|_DEPLOYMENT)|"
     r"OPENAI_[A-Z_]+|ANTHROPIC_[A-Z_]+|AZURE_OPENAI_[A-Z_]+|LANGCHAIN_[A-Z_]+)\b"
 )
+# Visible prompts: string literals bound to *prompt* / *instructions* / the system role.
+_PROMPT_LEAD = (
+    r"(?:\b\w*(?:prompt|instructions)\w*\s*[:=]\s*"
+    r"|[\"']role[\"']\s*:\s*[\"']system[\"']\s*,\s*[\"']content[\"']\s*:\s*"
+    r"|\bsystem\s*=\s*)"
+)
+_STR = r"[frb]?(\"\"\"|'''|\"|')(.+?)\1"
+PROMPT_LITERAL = re.compile(r"(?is)" + _PROMPT_LEAD + _STR)
+DOCSTRING = re.compile(r"^\s*(?:#[^\n]*\n\s*)*[rb]?(\"\"\"|''')(.+?)\1", re.S)
+MAX_PROMPT_CHARS = 600
+
 CODE_EXT = {".py", ".js", ".mjs", ".cjs", ".ts", ".tsx", ".jsx", ".ipynb"}
 SKIP_DIRS = {"node_modules", ".git", ".venv", "venv", "__pycache__", "dist", "build", ".next", "site-packages"}
 MAX_BYTES = 1_000_000
+
+
+def extract_prompts(text: str, limit: int = 3) -> list[str]:
+    out: list[str] = []
+    for m in PROMPT_LITERAL.finditer(text):
+        body = " ".join(m.group(2).split())
+        if len(body) >= 20 and body not in out:
+            out.append(body[:MAX_PROMPT_CHARS])
+        if len(out) >= limit:
+            break
+    return out
 
 
 def scan_text(text: str) -> dict:
     sdks = sorted(k for k, p in SDK_PATTERNS.items() if p.search(text))
     systems = sorted(k for k, p in SYSTEM_SDKS.items() if p.search(text)) if sdks else []
     env_names = sorted(set(ENV_NAME.findall(text)))
-    return {"sdks": sdks, "systems": systems, "env_names": env_names}
+    res = {"sdks": sdks, "systems": systems, "env_names": env_names}
+    if sdks:
+        doc = DOCSTRING.match(text)
+        res["docstring"] = " ".join(doc.group(2).split())[:MAX_PROMPT_CHARS] if doc else None
+        res["prompts"] = extract_prompts(text)  # business text; scrubbed for secrets before emit
+    return res
 
 
 def scan_env_file(path: Path) -> list[str]:

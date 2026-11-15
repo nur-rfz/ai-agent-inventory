@@ -36,3 +36,16 @@ def test_codescan_names_only(tmp_path: Path):
     env = next(r for r in res if r.get("env_file"))
     assert env["env_names"] == ["OPENAI_API_KEY"]
     assert not any("node_modules" in r["relative_path"] for r in res)
+
+
+def test_codescan_extracts_visible_prompts_and_docstring(tmp_path: Path):
+    (tmp_path / "s.py").write_text('''"""Summarize unread customer emails for the AR team."""
+from openai import OpenAI
+SYSTEM_PROMPT = """You are an assistant for accounts receivable.
+Summarize each customer email: ask, urgency, next step."""
+msgs = [{"role": "system", "content": "Always answer in English and keep it under 80 words."}]
+''')
+    [r] = scan_folder(tmp_path)
+    assert r["docstring"].startswith("Summarize unread customer emails")
+    assert r["prompts"][0].startswith("You are an assistant for accounts receivable. Summarize")
+    assert any("under 80 words" in p for p in r["prompts"])

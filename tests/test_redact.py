@@ -93,3 +93,13 @@ def test_parsed_server_public_view_has_no_secret_values():
     # fingerprints are derived from redacted data: identical across secret rotation
     pg2 = RawServer(**{**pg.__dict__, "args": ["postgres-mcp", "postgresql://app:Other@10.0.0.5:5432/prod"]})
     assert pg.fingerprint == pg2.fingerprint
+
+
+def test_vendor_ids_survive_but_secrets_under_id_keys_with_spaces_do_not():
+    raw = {"app_id": "084a3e9f-a9f4-43f7-89f9-d229cf97853e", "record_id": "Directory_5b2c-ms365-mcp-user-consent",
+           "client_secret": "084a3e9f-a9f4-43f7-89f9-d229cf97853e", "note": "app 084a3e9fa9f443f789f9d229cf97853e"}
+    out = scrub(raw)
+    assert out["app_id"] == raw["app_id"] and out["record_id"] == raw["record_id"]
+    assert out["client_secret"] == REDACTED          # sensitive key name wins
+    assert "084a3e9fa9f443f789f9d229cf97853e" not in out["note"]  # free text still scrubbed
+    assert leaks(out) == []

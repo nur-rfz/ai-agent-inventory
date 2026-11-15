@@ -26,6 +26,9 @@ systems:
   Intercom:      {kind: saas, hosts: [api.intercom.io]}
   Stripe:        {kind: saas, hosts: [api.stripe.com, mcp.stripe.com]}
   Sentry:        {kind: saas, hosts: [sentry.io, "*.sentry.io"]}
+  Microsoft Entra ID: {kind: identity, hosts: [login.microsoftonline.com]}
+  Google Identity: {kind: identity, hosts: [oauth2.googleapis.com, accounts.google.com]}
+  Fireflies:     {kind: saas, hosts: [api.fireflies.ai]}
   Postgres:      {kind: infra, hosts: []}  # usually a private host; detected via port 5432 / postgres:// URLs
   AWS:           {kind: infra, hosts: ["*.amazonaws.com"]}
   Supabase:      {kind: infra, hosts: ["*.supabase.co"]}

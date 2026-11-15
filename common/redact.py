@@ -59,11 +59,22 @@ def _entropy(tok: str) -> float:
     return -sum(c / n * log2(c / n) for c in Counter(tok).values())
 
 
-def _is_generic_secret(tok: str) -> bool:
-    """Long random-looking token: several digits, letters, high entropy.
+_HEX = re.compile(r"[0-9a-fA-F]{32,}")
 
-    Keeps things like `summarize_customer_emails_v2_final` (one digit) intact.
+
+def _is_generic_secret(tok: str) -> bool:
+    """Long random-looking token.
+
+    - 32+ hex chars: secret (hex API keys, signing secrets).
+    - Mostly readable word segments (`summarize_customer_emails_v2_final`,
+      `Directory_5b2c-ms365-mcp-user-consent`): not a secret.
+    - Otherwise: several digits + letters + high entropy.
     """
+    if _HEX.fullmatch(tok):
+        return True
+    words = [seg for seg in re.split(r"[_\-]", tok) if seg.isalpha() and len(seg) >= 3]
+    if len(words) >= 2 and sum(map(len, words)) / len(tok) >= 0.5:
+        return False
     digits = sum(c.isdigit() for c in tok)
     alpha = sum(c.isalpha() for c in tok)
     return digits >= 3 and alpha >= 3 and _entropy(tok) >= 3.5
@@ -143,6 +154,14 @@ def redact_mapping_values(d: dict[str, Any] | None) -> dict[str, str]:
 # Structural identifiers we generate ourselves (uuids, sha256 fingerprints).
 SAFE_KEYS = {"id", "fingerprint", "server_fingerprint", "signal_id", "evidence_hash", "ts"}
 _SAFE_SHAPE = re.compile(r"[0-9a-fA-F\-:.TZ+]{8,72}")
+# Vendor object identifiers (app ids, audit record ids). Public identifiers, not credentials,
+# and needed to link events; a looser shape, still no whitespace or long base64 blobs.
+ID_KEYS = {"app_id", "client_id", "record_id", "object_id", "project_id", "tenant_id", "principal_id"}
+_ID_SHAPE = re.compile(r"[A-Za-z0-9_\-:.]{3,96}")
+
+
+def _is_structural(key: str | None, v: str) -> bool:
+    return (key in SAFE_KEYS and bool(_SAFE_SHAPE.fullmatch(v))) or (key in ID_KEYS and bool(_ID_SHAPE.fullmatch(v)))
 
 
 def scrub(obj: Any) -> Any:
@@ -153,7 +172,7 @@ def scrub(obj: Any) -> Any:
     if isinstance(obj, dict):
         res = {}
         for k, v in obj.items():
-            if k in SAFE_KEYS and isinstance(v, str) and _SAFE_SHAPE.fullmatch(v):
+            if isinstance(v, str) and _is_structural(k, v):
                 res[k] = v
             elif isinstance(k, str) and isinstance(v, str) and SENSITIVE_NAME.search(k) and v != REDACTED:
                 res[k] = REDACTED
@@ -186,7 +205,7 @@ def leaks(obj: Any, _key: str | None = None) -> list[str]:
     if isinstance(obj, (list, tuple)):
         return [h for v in obj for h in leaks(v, _key)]
     if isinstance(obj, str):
-        if _key in SAFE_KEYS and _SAFE_SHAPE.fullmatch(obj):
+        if _is_structural(_key, obj):
             return []
         return [h for h in find_secrets(obj) if h != REDACTED]
     return []

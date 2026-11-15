@@ -1,0 +1,21 @@
+# Org policy used for classification + risk (Phase 3).
+sanctioned_apps:            # status "ok"
+  - Langdock
+approved_llm_providers:     # LLM traffic/keys to anything else is flagged
+  - Langdock
+  - Anthropic               # via Langdock / approved enterprise contract
+  - Azure OpenAI
+systems_of_record:          # write access to these is flagged
+  - Salesforce
+  - HubSpot
+  - Postgres
+  - Microsoft 365
+  - Gmail
+  - GitHub
+company_data_systems:       # personal OAuth on these is flagged
+  - Gmail
+  - Google Drive
+  - Microsoft 365
+  - Salesforce
+  - HubSpot
+  - Slack

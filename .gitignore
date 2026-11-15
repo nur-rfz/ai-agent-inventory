@@ -7,3 +7,4 @@ ui/dist/
 .pytest_cache/
 sensor.yaml
 .env
+!fixtures/colleagues/**/.env

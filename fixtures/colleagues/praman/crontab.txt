@@ -1,0 +1,1 @@
+30 7 * * 1-5 cd ~/ar-automation && /usr/bin/python3 summarize_customer_emails.py >> ~/ar-automation/log.txt 2>&1

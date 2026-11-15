@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "github": {
+      "url": "https://api.githubcopilot.com/mcp/",
+      "headers": { "Authorization": "Bearer fake-github-pat" }
+    },
+    "prod-db": {
+      "command": "uvx",
+      "args": ["postgres-mcp", "--access-mode=unrestricted"],
+      "env": { "DATABASE_URI": "postgresql://app_rw:fake-password@billing-db.internal.nordlicht.example:5432/billing" }
+    }
+  }
+}

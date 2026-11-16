@@ -1,6 +1,6 @@
 {
   "mcpServers": {
-    "support-inbox": {
+    "inbox-summaries": {
       "command": "npx",
       "args": ["-y", "@gongrzhe/server-gmail-autoauth-mcp"]
     }

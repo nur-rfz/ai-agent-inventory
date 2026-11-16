@@ -1,6 +1,6 @@
 {
   "mcpServers": {
-    "salesforce": {
+    "pipeline-review": {
       "command": "npx",
       "args": ["-y", "@salesforce/mcp", "--orgs", "DEFAULT_TARGET_ORG", "--toolsets", "data,orgs,users"]
     },

@@ -69,7 +69,7 @@ fixtures/colleagues ─▶ fixtures/build.py ─┴─▶ scripts/seed.py ──
 
 ## Agents (Phase 3)
 ```
-signals ─▶ components ─▶ agents ─▶ reach · triggers · risk · rule class ─▶ Claude card (cached)
+signals ─▶ components ─▶ agents ─▶ reach · triggers · risk · rule class ─▶ LLM card (cached)
            (per fingerprint)  (split by purpose,      (deterministic,          (name, purpose, capabilities,
                                identity linked)        every fact cites ids)    classification, confidence)
 ```
@@ -98,23 +98,31 @@ signals ─▶ components ─▶ agents ─▶ reach · triggers · risk · rule
   approved providers, service-account keys, plaintext credentials, unrestricted DB access.
   Every flag cites signal ids.
 - **Classification** (rules first): sanctioned → ok, engineering → govern_in_place, SaaS →
-  govern_in_place, otherwise replace. Claude may override with a rationale (not for `ok`).
+  govern_in_place, otherwise replace. The LLM may override with a rationale (not for `ok`).
 
-### Enrichment (`backend/enrich.py`)
+### Enrichment (`backend/enrich.py`, `backend/llm.py`)
+- Provider: **OpenRouter** by default (`openai/gpt-4o-mini`, OpenAI-compatible chat
+  completions, `response_format: json_schema` strict). Anthropic is an option
+  (`LLM_PROVIDER=anthropic`, `output_config.format`). Routing defaults to
+  `provider.sort=throughput` on OpenRouter (~3s vs 3.6–5.3s per card at the time of
+  testing; it currently routes to Azure-hosted OpenAI).
 - Input: a compact, redacted evidence bundle. Each item has an id (E1…) that the card
   must cite; ids map back to signal ids, so the evidence on every card field is clickable.
   No timestamps or counts, so new runs of the same pattern don't change the hash.
-- Output: `output_config.format` with a strict JSON schema (forced `tool_choice` is
-  rejected by current models). Claude adds name, purpose, capabilities (used for Phase 4
+- Output: a strict JSON schema. The LLM adds name, purpose, capabilities (Phase 4
   clustering), instructions summary (Phase 5), classification and confidence
-  (< 0.6 → "needs review"). It can add reach it sees in code or prompts, labeled as
-  inferred, but it never removes evidence-backed facts. Risk stays rule-based.
-- Cached in SQLite by (evidence hash, model, prompt version); `reset` keeps the cache.
-  The backend calls Claude only once an agent's evidence has been unchanged for 0.6s.
-  Without credentials, cards stay rule-based (`rules_only`), with no fake output.
-- Env: `ANTHROPIC_API_KEY`, `ENRICH_MODEL` (default `claude-opus-5-5`), `ENRICH_EFFORT`
-  (default `low`, for demo latency), `ENRICH_FALLBACKS` (server-side refusal fallbacks,
-  default on).
+  (< 0.6 → "needs review"; agents known only from an OAuth/key event are capped at 0.5).
+  It can add reach seen in code or prompts, labeled as inferred, but never removes
+  evidence-backed facts. Risk stays rule-based.
+- Latency path for the live demo: agents first seen in the last 5 minutes go to a
+  dedicated fast-lane worker, skip the 0.4s settle window once their probe is in, and
+  pre-open the HTTPS connection on first sight. Everything else waits until its evidence
+  has been unchanged for 0.4s, newest first.
+- Cached in SQLite by (evidence hash, provider:model, prompt version); `reset` keeps the
+  cache. Without credentials, cards stay rule-based (`rules_only`), with no fake output.
+- Env: `OPENROUTER_API_KEY`, `LLM_PROVIDER` (openrouter | anthropic), `LLM_MODEL`,
+  `OPENROUTER_PROVIDER_SORT` (default throughput; empty = OpenRouter default), and for
+  Anthropic `ANTHROPIC_API_KEY`, `ENRICH_EFFORT`, `ENRICH_FALLBACKS`.
 
 ### API
 `GET /api/agents`, `GET /api/agents/{id}` (evidence timeline + person→agent→server→system

@@ -6,11 +6,11 @@ colleagues' laptops plus three identity/vendor log exports would report.
 ## Who built what
 | Person | Dept | Agent | Built with | Story |
 |---|---|---|---|---|
-| Maya Patel | Support | summarize customer emails | Claude Desktop + Gmail MCP | personal Google OAuth client with `gmail.modify` |
+| Maya Patel | Support | summarize customer emails | Claude Desktop + Gmail MCP (`inbox-summaries`) | personal Google OAuth client with `gmail.modify` |
 | Jonas Weber | Sales | summarize customer emails **+ CRM lookup** | Claude Desktop + Outlook MCP (ms-365) + HubSpot MCP | user consent to `Mail.ReadWrite Mail.Send` |
 | Priya Raman | Finance | summarize customer emails (AR focus) | Python cron 07:30 Mon–Fri, OpenAI + Microsoft Graph | app reg with **application** `Mail.Read` (tenant-wide), new OpenAI key on service account |
 | Lena Hoffmann | RevOps | weekly pipeline report | Python cron Mon 08:00, Salesforce + Claude + Slack | also: ChatGPT consent to SharePoint files |
-| Tom Becker | Sales | weekly pipeline report (on demand, Mon/Thu) | Claude Desktop + Salesforce MCP + Slack MCP | Salesforce toolset can write records; Fireflies notetaker consent |
+| Tom Becker | Sales | weekly pipeline report (on demand, Mon/Thu) | Claude Desktop + Salesforce MCP (`pipeline-review`) + Slack MCP | Salesforce toolset can write records; Fireflies notetaker consent |
 | Alex Kim | Engineering | coding agents | Cursor (GitHub remote MCP, Postgres MCP `--access-mode=unrestricted` on billing DB) + Claude Code (Sentry, Linear) | govern in place |
 | IT Admin | IT | Langdock | admin consent | sanctioned |
 

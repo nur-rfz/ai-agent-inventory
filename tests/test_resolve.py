@@ -29,7 +29,7 @@ def by_name(agents, owner, needle):
 def test_fixture_org_resolves_to_expected_agents():
     agents = fixture_agents()
     assert len(agents) == 10
-    maya = by_name(agents, "Maya Patel", "support-inbox")
+    maya = by_name(agents, "Maya Patel", "inbox-summaries")
     assert maya["surface"] == "claude_desktop" and maya["classification"] == "replace"
     assert {r["system"] for r in maya["data_reach"]} == {"Gmail"}
     assert [l["name"] for l in maya["linked_identity"]] == ["gmail-mcp (maya personal project)"]
@@ -62,8 +62,8 @@ def test_risk_flags_from_evidence():
     assert {"tenant_wide_app_permission", "unapproved_llm", "service_account_key"} <= codes(
         by_name(agents, "Priya Raman", "summarize"))
     assert {"unrestricted_db", "write_system_of_record"} <= codes(by_name(agents, "Alex Kim", "Cursor"))
-    assert "personal_oauth" in codes(by_name(agents, "Maya Patel", "support-inbox"))
-    tom = by_name(agents, "Tom Becker", "salesforce")
+    assert "personal_oauth" in codes(by_name(agents, "Maya Patel", "inbox-summaries"))
+    tom = by_name(agents, "Tom Becker", "pipeline-review")
     assert any(f["code"] == "write_system_of_record" and "Salesforce" in f["text"] for f in tom["risk"]["flags"])
     assert by_name(agents, "Lena Hoffmann", "weekly")["risk"]["level"] in ("none", "low")  # Anthropic is approved
     for a in agents:  # every flag cites evidence
@@ -159,7 +159,7 @@ def test_apply_card_merges_without_dropping_evidence():
     out = apply_card(priya, card, {"enabled": True})
     assert out["status"] == "needs_review"  # confidence < 0.6
     m365 = next(r for r in out["data_reach"] if r["system"] == "Microsoft 365")
-    assert m365["access"] == "rw" and m365["source"] == "evidence+claude"
+    assert m365["access"] == "rw" and m365["source"] == "evidence+llm"
     assert {r["system"] for r in out["data_reach"]} == before
     assert len([t for t in out["triggers"] if t["type"] == "schedule"]) == 1  # no duplicate cron
     assert out["rationale"]["purpose_evidence_ids"]

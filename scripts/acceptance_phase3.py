@@ -4,7 +4,7 @@ Starts backend + demo MCP server + sensor (throwaway HOME whose Cursor config al
 has a GitHub server), seeds the simulated org, then adds `inbox-digest` to Cursor and
 measures:
   - rule-based card (owner, tools, reach, classification, risk) visible
-  - Claude card (name, purpose, classification, confidence) visible
+  - LLM card (name, purpose, classification, confidence) visible
   - every evidence id on the card resolves to a stored signal
   - the business server is a separate agent from the GitHub coding agent
 
@@ -68,6 +68,10 @@ def main() -> int:
         api = httpx.Client(base_url=base, timeout=5)
         wait_for(lambda: any(m["name"] == "github" for a in api.get("/api/agents").json() for m in a["members"]) or None, 15)
         enrich = api.get("/api/stats").json()["enrichment"]
+        if enrich["enabled"]:  # like the pre-warmed demo: background cards done before going live
+            wait_for(lambda: all(a["status"] in ("enriched", "needs_review") for a in api.get("/api/agents").json())
+                     or None, 180, 0.5)
+            enrich = api.get("/api/stats").json()["enrichment"]
 
         # --- the on-camera moment ---
         cfg["mcpServers"]["inbox-digest"] = {"url": "http://127.0.0.1:8931/mcp", "headers": {"Authorization": "Bearer demo"}}
@@ -92,11 +96,11 @@ def main() -> int:
         if enrich["enabled"]:
             card = wait_for(lambda: find(lambda a: a["status"] in ("enriched", "needs_review")), 30)
             t_card = time.time() - t0
-            results.append(("Claude card (purpose, classification, confidence) < 5s", bool(card) and t_card < 5,
+            results.append(("LLM card (purpose, classification, confidence) < 5s", bool(card) and t_card < 5,
                             f"{t_card:.2f}s ({(card or {}).get('enrichment', {}).get('duration_ms')} ms model time, "
-                            f"{enrich['model']} effort={enrich['effort']})"))
+                            f"{enrich['provider']} {enrich['model']})"))
         else:
-            results.append(("Claude card < 5s", None, f"SKIPPED: {enrich['disabled_reason']}"))
+            results.append(("LLM card < 5s", None, f"SKIPPED: {enrich['disabled_reason']}"))
 
         a = card or rules or first
         agents = api.get("/api/agents").json()

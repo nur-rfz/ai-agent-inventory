@@ -1,4 +1,4 @@
-"""Backend: ingest signals, resolve agents, enrich with Claude, broadcast over SSE.
+"""Backend: ingest signals, resolve agents, enrich with an LLM, broadcast over SSE.
 
 uvicorn backend.app:app --port 8787
 """
@@ -28,7 +28,8 @@ from .org import directory, policy
 from .resolve import build_agents, public
 
 log = logging.getLogger("backend")
-SETTLE_S = 0.6  # evidence must be unchanged this long before we spend a Claude call
+logging.basicConfig(level=logging.INFO, format="%(asctime)s.%(msecs)03d %(name)s %(message)s", datefmt="%H:%M:%S")
+SETTLE_S = 0.4  # evidence must be unchanged this long before we spend an LLM call
 
 
 class Broker:
@@ -57,6 +58,21 @@ class Broker:
                     yield ": keepalive\n\n"
         finally:
             self.subs.discard(q)
+
+
+def _is_fresh(agent: dict, window_s: float = 300) -> bool:
+    """First seen in the last few minutes = live discovery; seeded history is days old."""
+    from datetime import datetime, timezone
+
+    fs = agent.get("first_seen")
+    return bool(fs) and (datetime.now(timezone.utc) - datetime.fromisoformat(fs)).total_seconds() < window_s
+
+
+def _probe_settled(agent: dict) -> bool:
+    """Every MCP member has a probe outcome (ok / error / skipped), so the evidence is complete."""
+    kinds = [e["kind"] for e in agent["_evidence"]["evidence"]]
+    servers = kinds.count("mcp_server_config")
+    return servers > 0 and kinds.count("mcp_tools") + kinds.count("mcp_probe") >= servers
 
 
 class Inventory:
@@ -107,11 +123,17 @@ class Inventory:
             apply_card(a, card, status)
             if not card and self.enricher and not self.enricher.disabled_reason:
                 h, since = self._seen_hash.get(a["id"], (None, now))
-                if h != a["evidence_hash"]:
+                fresh = _is_fresh(a)
+                if fresh and a["id"] not in self._seen_hash:
+                    self.enricher.warm()
+                if fresh and _probe_settled(a):  # live agent with its tools in: nothing left to wait for
+                    self._seen_hash[a["id"]] = (a["evidence_hash"], now)
+                    self.enricher.request(a, hot=True)
+                elif h != a["evidence_hash"]:
                     self._seen_hash[a["id"]] = (a["evidence_hash"], now)
                     asyncio.get_running_loop().call_later(SETTLE_S + 0.05, self.schedule, 0)
                 elif now - since >= SETTLE_S:
-                    self.enricher.request(a)
+                    self.enricher.request(a, hot=_is_fresh(a))
                 if enrich_mod.cache_key(a["evidence_hash"]) in self.enricher.inflight:
                     a["status"] = "enriching"
             new[a["id"]] = a

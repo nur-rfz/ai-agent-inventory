@@ -55,6 +55,8 @@ _STR = r"[frb]?(\"\"\"|'''|\"|')(.+?)\1"
 PROMPT_LITERAL = re.compile(r"(?is)" + _PROMPT_LEAD + _STR)
 DOCSTRING = re.compile(r"^\s*(?:#[^\n]*\n\s*)*[rb]?(\"\"\"|''')(.+?)\1", re.S)
 MAX_PROMPT_CHARS = 600
+# Method names called in the code (`.chat_postMessage(`): names only, used to infer write access.
+CALL = re.compile(r"\.([A-Za-z_][A-Za-z0-9_]{2,40})\(")
 
 CODE_EXT = {".py", ".js", ".mjs", ".cjs", ".ts", ".tsx", ".jsx", ".ipynb"}
 SKIP_DIRS = {"node_modules", ".git", ".venv", "venv", "__pycache__", "dist", "build", ".next", "site-packages"}
@@ -81,6 +83,7 @@ def scan_text(text: str) -> dict:
         doc = DOCSTRING.match(text)
         res["docstring"] = " ".join(doc.group(2).split())[:MAX_PROMPT_CHARS] if doc else None
         res["prompts"] = extract_prompts(text)  # business text; scrubbed for secrets before emit
+        res["calls"] = sorted(set(CALL.findall(text)))[:80]
     return res
 
 

@@ -1,5 +1,6 @@
 # Host -> business system catalog. `*.` prefix = any subdomain.
-# kind: llm (model provider) | saas (system of record / app) | infra
+# kind: llm (model provider) | saas (system of record / app) | infra | identity
+# domain: engineering systems mark coding agents (split from business agents in one client config)
 systems:
   OpenAI:        {kind: llm,  hosts: [api.openai.com]}
   Anthropic:     {kind: llm,  hosts: [api.anthropic.com]}
@@ -13,28 +14,28 @@ systems:
   Jira:          {kind: saas, hosts: ["*.atlassian.net", api.atlassian.com]}
   Confluence:    {kind: saas, hosts: []}   # shares *.atlassian.net; disambiguated by tools
   Slack:         {kind: saas, hosts: [slack.com, "*.slack.com"]}
-  GitHub:        {kind: saas, hosts: [api.github.com, github.com, api.githubcopilot.com]}
-  GitLab:        {kind: saas, hosts: [gitlab.com]}
+  GitHub:        {kind: saas, domain: engineering, hosts: [api.github.com, github.com, api.githubcopilot.com]}
+  GitLab:        {kind: saas, domain: engineering, hosts: [gitlab.com]}
   Gmail:         {kind: saas, hosts: [gmail.googleapis.com]}
   Google Drive:  {kind: saas, hosts: [www.googleapis.com, drive.googleapis.com, docs.googleapis.com]}
   Microsoft 365: {kind: saas, hosts: [graph.microsoft.com, outlook.office.com, outlook.office365.com]}
   Salesforce:    {kind: saas, hosts: ["*.salesforce.com", "*.my.salesforce.com", "*.force.com"]}
   HubSpot:       {kind: saas, hosts: [api.hubapi.com]}
   Notion:        {kind: saas, hosts: [api.notion.com, mcp.notion.com]}
-  Linear:        {kind: saas, hosts: [api.linear.app, mcp.linear.app]}
+  Linear:        {kind: saas, domain: engineering, hosts: [api.linear.app, mcp.linear.app]}
   Zendesk:       {kind: saas, hosts: ["*.zendesk.com"]}
   Intercom:      {kind: saas, hosts: [api.intercom.io]}
   Stripe:        {kind: saas, hosts: [api.stripe.com, mcp.stripe.com]}
-  Sentry:        {kind: saas, hosts: [sentry.io, "*.sentry.io"]}
+  Sentry:        {kind: saas, domain: engineering, hosts: [sentry.io, "*.sentry.io", mcp.sentry.dev]}
   Microsoft Entra ID: {kind: identity, hosts: [login.microsoftonline.com]}
   Google Identity: {kind: identity, hosts: [oauth2.googleapis.com, accounts.google.com]}
   Fireflies:     {kind: saas, hosts: [api.fireflies.ai]}
-  Postgres:      {kind: infra, hosts: []}  # usually a private host; detected via port 5432 / postgres:// URLs
-  AWS:           {kind: infra, hosts: ["*.amazonaws.com"]}
-  Supabase:      {kind: infra, hosts: ["*.supabase.co"]}
+  Postgres:      {kind: infra, domain: engineering, hosts: []}  # usually a private host; detected via port 5432 / postgres:// URLs
+  AWS:           {kind: infra, domain: engineering, hosts: ["*.amazonaws.com"]}
+  Supabase:      {kind: infra, domain: engineering, hosts: ["*.supabase.co"]}
 
 # Well-known ports -> system, for private hosts we can't name.
-ports:
+ports:            # all engineering-domain infra
   5432: Postgres
   3306: MySQL
   6379: Redis

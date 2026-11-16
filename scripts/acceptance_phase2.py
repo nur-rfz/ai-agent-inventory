@@ -68,11 +68,12 @@ def main() -> int:
 
         sigs = [s for _, s in arrivals]
         span = arrivals[-1][0] - arrivals[0][0] if arrivals else 0
-        print("\nLive arrival over SSE (signals per 5s window):")
-        buckets = Counter(int(t // 5) * 5 for t, _ in arrivals)
+        w = 5 / a.speed  # window scales with replay speed
+        print(f"\nLive arrival over SSE (signals per {w:g}s window):")
+        buckets = Counter(int(t // w) for t, _ in arrivals)
         for b in sorted(buckets):
-            hosts = sorted({s["host"] for t, s in arrivals if int(t // 5) * 5 == b})
-            print(f"  {b:>3}-{b + 5:<3}s {'#' * (buckets[b] // 4):<40} {buckets[b]:>3}  {', '.join(hosts)}")
+            hosts = sorted({s["host"] for t, s in arrivals if int(t // w) == b})
+            print(f"  {b * w:>5.1f}-{(b + 1) * w:<5.1f}s {'#' * (buckets[b] // 4):<40} {buckets[b]:>3}  {', '.join(hosts)}")
         results.append(("replay streams live over SSE (spread over time, not one burst)",
                         len(buckets) >= 4 and span > 15 / a.speed, f"{len(sigs)} signals over {span:.1f}s"))
 

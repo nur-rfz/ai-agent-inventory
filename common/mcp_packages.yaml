@@ -1,0 +1,20 @@
+# Well-known MCP servers -> the systems they reach and their default access.
+# Used when a server can't be probed (stdio without consent, OAuth-protected remote),
+# and to attribute tools to systems. Keys: npm/pypi package or remote URL.
+"@gongrzhe/server-gmail-autoauth-mcp":   {systems: {Gmail: rw}, label: Gmail MCP}
+"@softeria/ms-365-mcp-server":           {systems: {Microsoft 365: rw}, label: Microsoft 365 MCP (Outlook, Calendar, Files)}
+"@hubspot/mcp-server":                   {systems: {HubSpot: rw}, label: HubSpot MCP}
+"@salesforce/mcp":                       {systems: {Salesforce: rw}, label: Salesforce DX MCP}
+"@modelcontextprotocol/server-slack":    {systems: {Slack: rw}, label: Slack MCP}
+"@modelcontextprotocol/server-github":   {systems: {GitHub: rw}, label: GitHub MCP}
+"@modelcontextprotocol/server-postgres": {systems: {Postgres: r}, label: Postgres MCP (read-only)}
+"@modelcontextprotocol/server-gdrive":   {systems: {Google Drive: r}, label: Google Drive MCP}
+"@notionhq/notion-mcp-server":           {systems: {Notion: rw}, label: Notion MCP}
+"@atlassian/mcp-server":                 {systems: {Jira: rw, Confluence: rw}, label: Atlassian MCP}
+"postgres-mcp":                          {systems: {Postgres: r}, label: Postgres MCP Pro, access_flag: {"--access-mode=unrestricted": rw}}
+"mcp-server-git":                        {systems: {GitHub: r}, label: Git MCP}
+"https://api.githubcopilot.com/mcp/":    {systems: {GitHub: rw}, label: GitHub remote MCP}
+"https://mcp.sentry.dev/mcp":            {systems: {Sentry: rw}, label: Sentry remote MCP}
+"https://mcp.linear.app/sse":            {systems: {Linear: rw}, label: Linear remote MCP}
+"https://mcp.notion.com/mcp":            {systems: {Notion: rw}, label: Notion remote MCP}
+"https://mcp.stripe.com":                {systems: {Stripe: rw}, label: Stripe remote MCP}

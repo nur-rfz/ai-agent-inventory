@@ -4,7 +4,7 @@ Finds AI agents and MCP servers with no connectors to configure. It works out
 what each one is for, groups duplicates built by different people, and turns
 each group into one shared Langdock agent. See [ARCHITECTURE.md](ARCHITECTURE.md).
 
-Status: **Phase 1 (sensor + ingest) and Phase 2 (simulated org) done.** Phases 3–7 are next.
+Status: **Phases 1–3 done** (sensor, simulated org, agent resolution + Claude enrichment). Phases 4–7 are next.
 
 ## Setup
 ```bash
@@ -33,11 +33,21 @@ python scripts/seed.py                       # or load everything at once
 ```
 Who built what: [fixtures/README.md](fixtures/README.md).
 
+## Agents + Claude enrichment (Phase 3)
+```bash
+export ANTHROPIC_API_KEY=...                # without it, cards stay rule-based
+export DEMO_OWNER_NAME="Your Name"           # how your laptop shows up as owner
+python -m uvicorn backend.app:app --port 8787
+curl localhost:8787/api/agents               # inventory; /api/agents/<id> for evidence + graph
+```
+Optional: `ENRICH_MODEL` (default `claude-opus-5-5`), `ENRICH_EFFORT` (default `low`).
+
 ## Checks
 ```bash
 python -m pytest -q                       # redaction + parser tests
 python scripts/acceptance_phase1.py       # end-to-end, in a throwaway HOME
 python scripts/acceptance_phase2.py       # replay the org, verify live arrival + coverage
+python scripts/acceptance_phase3.py       # live Cursor edit -> split agent + card within 5s
 python -m sensor.paths                    # which MCP config files exist on this OS
 ```
 

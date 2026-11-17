@@ -131,22 +131,26 @@ graph + evidence bundle), `POST /api/agents/{id}/enrich`, `GET /api/stats`; SSE 
 
 ## Duplicate clusters (Phase 4, `backend/cluster.py`)
 ```
-enriched "replace" agents ─▶ similarity = 0.6·cosine(job+name+capabilities) + 0.4·Jaccard(categories)
-                          ─▶ candidate groups (≥ 0.45, connected components)
-                          ─▶ LLM confirmation: genuine duplicate groups, base purpose, shared capabilities,
+enriched "replace" agents ─▶ score = 0.5·cosine(job+name+capabilities)        [all-MiniLM-L6-v2, local]
+                                    + 0.25·same primary category of the job  [email / crm / documents …]
+                                    + 0.25·Jaccard(system categories)         [Gmail ≈ Outlook = email]
+                          ─▶ average-linkage groups (≥ 0.45)
+                          ─▶ LLM confirmation: duplicate groups, base purpose, shared capabilities,
                              per-member variant ("uses Outlook instead of Gmail", "adds CRM lookup")
+new agent near a confirmed group ─▶ LLM "join" check for the newcomer only (group label/variants stay put)
 ```
 - Each card has a `job` field: 2–5 vendor-neutral words, so the same job built with
   Gmail, Outlook or a Python script reads the same.
-- Embeddings: `all-MiniLM-L6-v2`, local, loaded in a background thread at startup and
-  cached per text.
-- System categories (email, crm, chat, files, …): Gmail and Microsoft 365 mail are both
-  "email". Microsoft 365 counts as email or files depending on what the agent does.
 - Why hybrid: on the fixtures, plain embeddings put real duplicates at 0.38–0.84 and
-  unrelated pairs up to 0.48, so no single cosine cutoff works. The category term
-  separates them, and the LLM makes the final call (it can drop members that don't fit).
-- Cluster id = its earliest member's id. When the live agent joins, the existing card
-  updates in place: status `confirming` (immediate), then `confirmed`.
+  unrelated pairs up to 0.48, so no single cosine cutoff works. The primary-category term
+  keeps the core job decisive, so an inbox triager that also posts to Slack stays out
+  of the Slack pipeline reports.
+- Why average linkage: connected components chained the email and pipeline clusters
+  through the live agent (it touches both). A regression test covers this.
+- Live re-clustering is incremental: if a candidate group = a confirmed group +
+  newcomers, the LLM only decides whether each newcomer belongs and what its variant is.
+  The existing card updates in place (same id = its earliest member). It shows the
+  newcomer as joining immediately, confirmed about 2s later.
 - Confirmations are cached by membership + member evidence + model + prompt version.
   Without an LLM, groups show as unconfirmed `candidate`s.
 - API: `GET /api/clusters`, `GET /api/clusters/{id}`; SSE event `clusters`.
@@ -169,3 +173,39 @@ Flow: `GET /api/clusters/{id}/draft` → `POST …/approve` → `POST …/create
 requests only with `LANGDOCK_API_KEY` set; without it, it returns a dry run listing them.
 Approval is tied to the draft's content hash, so a changed draft needs re-approval.
 Exports: `GET …/export.json` (requests + manual steps), `GET …/export.md` (spec).
+
+## UI (Phase 6, `ui/`)
+React + Vite + Tailwind, served by the backend from `ui/dist` (one process for the demo;
+`npm run dev` for hot reload). Live state comes from one `EventSource` on `/api/stream`
+(`agent`, `agent_removed`, `clusters`, `stats`, `reset`).
+- **Header:** agents found, unmanaged %, duplicate clusters, consolidation (N → M), high risk.
+- **Inventory:** newest discoveries on top; new rows animate in. While the LLM works,
+  rows show a shimmer plus the facts already known (tools, servers); the card fills in
+  when it lands.
+- **Agent drawer:** purpose with rationale, person → agent → server/script → system
+  graph (write edges in red), reach, triggers, risk flags, tools, and an evidence
+  timeline. Every "evidence" link highlights the exact signals; repeats collapse (×14);
+  click a signal for its JSON.
+- **Duplicates:** "N people built the same agent" cards with per-member variants. A
+  newcomer appears as "just discovered" while the join is confirmed.
+- **Consolidate:** the Langdock preview: N → 1, base + variants, rendered instructions
+  (shimmer while being written), integrations, Scheduled Tasks, suggested knowledge,
+  decommission checklist, the exact API requests, then Approve → Create in Langdock and
+  JSON/Markdown export.
+
+## Demo hardening (Phase 7)
+- `scripts/demo.sh`: one command. Resets the DB, starts the demo MCP server, backend + UI
+  and the sensor on your machine, replays the colleagues, prints the Cursor snippet.
+- Reset keeps the LLM cache for the simulated org but **forgets everything about other
+  agents**. Your live agent's evidence is the same every run, so without this the
+  on-camera card would be a cache hit instead of a live LLM call.
+- `scripts/prewarm.py`: replays the org at demo speed into `data/inventory.db` once, so
+  every intermediate state of the replay is cached and only the live agent calls the LLM.
+- Latency path for the live agent: a fast-lane worker pool (2) for agents first seen in
+  the last 5 minutes, no settle wait once the probe is in, the HTTPS connection to the
+  LLM pre-opened on first sight, OpenRouter throughput routing, and an incremental
+  cluster join.
+- Progressive card: deterministic facts render at about 1s; LLM fields fill in.
+- `scripts/rehearse.py --runs 5`: the full on-camera path through the real UI with
+  Playwright (row → card → cluster badge → confirmed → preview incl. live → approve →
+  create), with timings per step. The last run: 5/5 clean, see README.

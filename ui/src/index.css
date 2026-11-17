@@ -1,0 +1,40 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --color-ink: #0f172a;
+  --color-brand: #4f46e5;
+}
+
+html, body { background: #f6f7fb; color: var(--color-ink); }
+
+@keyframes row-in {
+  0% { background: #e0e7ff; transform: translateY(-6px); opacity: 0; }
+  20% { opacity: 1; transform: none; }
+  100% { background: transparent; }
+}
+.row-new > td { animation: row-in 3.5s ease-out; }
+
+@keyframes shimmer { 0% { background-position: -400px 0 } 100% { background-position: 400px 0 } }
+.shimmer {
+  background: linear-gradient(90deg, #eef0f6 0%, #f8f9fc 40%, #eef0f6 80%);
+  background-size: 800px 100%;
+  animation: shimmer 1.4s linear infinite;
+  border-radius: 6px;
+}
+
+@keyframes pulse-dot { 0%, 100% { opacity: 1 } 50% { opacity: .35 } }
+.live-dot { animation: pulse-dot 1.6s ease-in-out infinite; }
+
+@keyframes flash-ring { 0% { box-shadow: 0 0 0 0 rgba(79,70,229,.55) } 100% { box-shadow: 0 0 0 14px rgba(79,70,229,0) } }
+.flash { animation: flash-ring 1.2s ease-out 2; }
+
+.prose-ld h1, .prose-ld h2 { font-weight: 650; font-size: 0.95rem; margin: 1rem 0 .35rem; }
+.prose-ld h3 { font-weight: 600; font-size: .9rem; margin: .8rem 0 .3rem; }
+.prose-ld p { margin: .35rem 0; }
+.prose-ld ul, .prose-ld ol { margin: .35rem 0 .35rem 1.2rem; }
+.prose-ld ul { list-style: disc; } .prose-ld ol { list-style: decimal; }
+.prose-ld li { margin: .15rem 0; }
+.prose-ld strong { font-weight: 600; }
+.prose-ld code { font-family: var(--font-mono); font-size: .8em; background: #eef0f6; padding: 0 .25rem; border-radius: 4px; }

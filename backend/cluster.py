@@ -1,9 +1,10 @@
 """Phase 4: find agents that different people built for the same job.
 
 1. Candidates: for every enriched `replace` agent, similarity =
-     0.6 * cosine(embedding of job + name + capabilities)      [all-MiniLM-L6-v2, local]
-   + 0.4 * Jaccard(system categories)                           [Gmail ~ Outlook = email, ...]
-   Pairs >= CANDIDATE_THRESHOLD are linked; connected components are candidate groups.
+     0.5  * cosine(embedding of job + name + capabilities)      [all-MiniLM-L6-v2, local]
+   + 0.25 * same primary category of the core job              [email / crm / documents / ...]
+   + 0.25 * Jaccard(system categories)                          [Gmail ~ Outlook = email, ...]
+   Average-linkage agglomeration at CANDIDATE_THRESHOLD (no chaining through bridge agents).
    (Tuned on the fixtures: plain embeddings put true duplicates at 0.38-0.71 and
    unrelated agents up to 0.48, so no single cosine cutoff works; the category term
    separates them and the LLM makes the final call.)
@@ -38,9 +39,9 @@ from . import llm
 log = logging.getLogger("cluster")
 
 EMBED_MODEL = os.environ.get("EMBED_MODEL", "sentence-transformers/all-MiniLM-L6-v2")
-W_EMBED, W_CATEGORY = 0.6, 0.4
+W_EMBED, W_PRIMARY, W_CATEGORY = 0.5, 0.25, 0.25
 CANDIDATE_THRESHOLD = float(os.environ.get("CLUSTER_THRESHOLD", "0.45"))
-PROMPT_VERSION = "c2"
+PROMPT_VERSION = "c3"
 
 SYSTEM_CATEGORY = {"Gmail": "email", "Salesforce": "crm", "HubSpot": "crm", "Slack": "chat", "Google Drive": "files",
                    "Notion": "docs", "Confluence": "docs", "Jira": "tickets", "Zendesk": "tickets", "Intercom": "tickets",
@@ -56,6 +57,19 @@ def categories(agent: dict) -> set[str]:
         if re.search(pat, text):
             cats.add(cat)
     return cats
+
+
+PRIMARY_CATEGORY = [(r"\b(e-?mails?|inbox(es)?|mailbox(es)?|mails?)\b", "email"),
+                    (r"(pipeline|sales|crm|deal|opportunit|salesforce|hubspot|forecast)", "crm"),
+                    (r"(pull request|code|repo|bug|incident)", "engineering"),
+                    (r"(document|file|knowledge|contract|policy)", "documents"),
+                    (r"(meeting|calendar|call notes)", "meetings")]
+
+
+def primary_category(agent: dict) -> str | None:
+    """The category of the core job itself ("triage customer support inbox" -> email)."""
+    text = f"{agent.get('job') or ''} {agent.get('name') or ''}".lower()
+    return next((cat for pat, cat in PRIMARY_CATEGORY if re.search(pat, text)), None)
 
 
 def embed_text(agent: dict) -> str:
@@ -99,36 +113,44 @@ class Embedder:
 
 
 def candidate_groups(agents: list[dict], embedder: Embedder) -> tuple[list[list[str]], dict[tuple[str, str], dict]]:
-    """Connected components of the similarity graph (only groups of 2+). Returns (groups, pair scores)."""
+    """Average-linkage agglomeration over the pair scores (groups of 2+). Returns (groups, pair scores).
+
+    Average linkage (not connected components): an agent that touches two jobs (e.g. an inbox
+    triager that also posts to Slack) can't chain two unrelated clusters together.
+    """
     pool = [a for a in agents if a["classification"] == "replace" and a.get("job") and a.get("capabilities")]
     if len(pool) < 2 or not embedder.ready:
         return [], {}
     vecs = embedder.encode([embed_text(a) for a in pool])
     sims = vecs @ vecs.T
     cats = [categories(a) for a in pool]
+    prim = [primary_category(a) for a in pool]
     pairs: dict[tuple[str, str], dict] = {}
-    parent = {a["id"]: a["id"] for a in pool}
-
-    def find(x):
-        while parent[x] != x:
-            parent[x] = parent[parent[x]]
-            x = parent[x]
-        return x
-
+    score = np.zeros((len(pool), len(pool)))
     for i in range(len(pool)):
         for j in range(i + 1, len(pool)):
             union = cats[i] | cats[j]
             jac = len(cats[i] & cats[j]) / len(union) if union else 0.0
-            score = W_EMBED * float(sims[i, j]) + W_CATEGORY * jac
+            same_primary = 1.0 if prim[i] and prim[i] == prim[j] else 0.0
+            sc = W_EMBED * float(sims[i, j]) + W_PRIMARY * same_primary + W_CATEGORY * jac
+            score[i, j] = score[j, i] = sc
             key = tuple(sorted((pool[i]["id"], pool[j]["id"])))
-            pairs[key] = {"score": round(score, 3), "embedding": round(float(sims[i, j]), 3), "category_overlap": round(jac, 2),
-                          "shared_categories": sorted(cats[i] & cats[j])}
-            if score >= CANDIDATE_THRESHOLD:
-                parent[find(pool[i]["id"])] = find(pool[j]["id"])
-    comps: dict[str, list[str]] = {}
-    for a in pool:
-        comps.setdefault(find(a["id"]), []).append(a["id"])
-    return [sorted(g) for g in comps.values() if len(g) > 1], pairs
+            pairs[key] = {"score": round(sc, 3), "embedding": round(float(sims[i, j]), 3), "category_overlap": round(jac, 2),
+                          "same_primary_category": bool(same_primary), "shared_categories": sorted(cats[i] & cats[j])}
+    groups: list[list[int]] = [[i] for i in range(len(pool))]
+    while True:
+        best, pair = CANDIDATE_THRESHOLD, None
+        for x in range(len(groups)):
+            for y in range(x + 1, len(groups)):
+                avg = float(np.mean([score[i, j] for i in groups[x] for j in groups[y]]))
+                if avg >= best:
+                    best, pair = avg, (x, y)
+        if not pair:
+            break
+        x, y = pair
+        groups[x] = groups[x] + groups[y]
+        del groups[y]
+    return [sorted(pool[i]["id"] for i in g) for g in groups if len(g) > 1], pairs
 
 
 # --- LLM confirmation -----------------------------------------------------------------
@@ -164,6 +186,34 @@ For each group:
 - variants: one entry per member: what genuinely differs for that member, in a short phrase ("uses Outlook instead of Gmail", "adds CRM lookup in HubSpot", "runs on a schedule weekdays 07:30, AR focus"). Write "baseline" for the member closest to the base.
 - rationale: one sentence why these are the same job.
 - confidence: 0.0-1.0."""
+
+
+JOIN_SCHEMA: dict[str, Any] = {
+    "type": "object", "additionalProperties": False, "required": ["joins"],
+    "properties": {"joins": {"type": "array", "items": {
+        "type": "object", "additionalProperties": False, "required": ["member", "belongs", "variant", "rationale"],
+        "properties": {"member": _STR, "belongs": {"type": "boolean"}, "variant": _STR, "rationale": _STR}}}},
+}
+
+JOIN_PROMPT = """A confirmed group of duplicate AI agents (same recurring job, built by different employees) already exists. New agents were just discovered that look similar.
+
+For each new agent (N1, N2, ...) decide whether it does the SAME core job as the group. An agent that does the same core job plus extra steps (CRM lookup, posting to chat, drafting replies, a schedule) belongs; describe what differs as its variant in a short phrase, e.g. "uses Outlook instead of Gmail, adds a CRM lookup". Only say it does not belong if its core job is different.
+
+Return one entry per new agent: member (N-ref), belongs, variant, rationale (one sentence)."""
+
+
+def _join_payload(group: dict, existing: list[dict], newcomers: list[dict]) -> tuple[str, dict[str, str]]:
+    refs = {f"N{i + 1}": a["id"] for i, a in enumerate(newcomers)}
+
+    def desc(a):
+        return {"name": a["name"], "job": a.get("job"), "purpose": a["purpose"], "capabilities": a.get("capabilities"),
+                "surface": a["surface"], "systems": [f"{r['system']} ({r['access']})" for r in a["data_reach"]],
+                "triggers": [t["description"] for t in a["triggers"]]}
+
+    payload = {"group": {k: group[k] for k in ("label", "base_purpose", "shared_capabilities")},
+               "existing_members": [desc(a) for a in existing],
+               "new_agents": [{"ref": r, **desc(a)} for r, a in zip(refs, newcomers)]}
+    return "Existing group and new agents:\n" + json.dumps(scrub(payload), indent=1), refs
 
 
 def _confirm_payload(group: list[dict]) -> tuple[str, dict[str, str]]:
@@ -217,15 +267,65 @@ class ClusterService:
             members = sorted((agents[i] for i in ids), key=lambda a: a["first_seen"] or "")
             key = membership_key(members)
             result = self.confirmed.get(key)
-            if result is None:
-                self._request(key, members)
-                clusters.append(_unconfirmed_cluster(members, pairs, pending=key in self.inflight))
+            if result is not None:
+                for g in result["groups"]:
+                    mem = [agents[i] for i in g["member_ids"] if i in agents]
+                    if len(mem) >= 2:
+                        clusters.append(_confirmed_cluster(mem, g, pairs, result.get("_meta", {})))
                 continue
-            for g in result["groups"]:
-                mem = [agents[i] for i in g["member_ids"] if i in agents]
-                if len(mem) >= 2:
-                    clusters.append(_confirmed_cluster(mem, g, pairs, result.get("_meta", {})))
+            prior = self._prior_group(set(ids))
+            if prior:  # an already-confirmed cluster + newcomers: only ask about the newcomers
+                existing = [a for a in members if a["id"] in prior["member_ids"]]
+                newcomers = [a for a in members if a["id"] not in prior["member_ids"]]
+                self._request_join(key, prior, existing, newcomers)
+                clusters.append(_joining_cluster(existing, newcomers, prior, pairs, pending=key in self.inflight))
+                continue
+            self._request(key, members)
+            clusters.append(_unconfirmed_cluster(members, pairs, pending=key in self.inflight))
         return clusters, pairs
+
+    def _prior_group(self, ids: set[str]) -> dict | None:
+        """Largest confirmed group (2+ members) that is a strict subset of these candidate ids."""
+        best = None
+        for result in self.confirmed.values():
+            for g in result.get("groups", []):
+                mem = set(g["member_ids"])
+                if len(mem) >= 2 and mem < ids and (best is None or len(mem) > len(best["member_ids"])):
+                    best = g
+        return best
+
+    def _request_join(self, key: str, prior: dict, existing: list[dict], newcomers: list[dict]) -> None:
+        if self.disabled_reason or key in self.inflight or time.monotonic() - self.failed.get(key, -1e9) < 60:
+            return
+        self.inflight.add(key)
+        asyncio.create_task(self._join(key, prior, existing, newcomers))
+
+    async def _join(self, key: str, prior: dict, existing: list[dict], newcomers: list[dict]) -> None:
+        t0 = time.monotonic()
+        try:
+            user, refs = _join_payload(prior, existing, newcomers)
+            out, usage = await self.llm.structured(JOIN_PROMPT, user, JOIN_SCHEMA, "cluster_join", max_tokens=1500)
+            joined = {refs[j["member"]]: j for j in out["joins"] if j["member"] in refs and j["belongs"]}
+            group = {**prior, "member_ids": sorted(set(prior["member_ids"]) | set(joined)),
+                     "variants": {**prior["variants"], **{i: j["variant"] for i, j in joined.items()}}}
+            ms = int((time.monotonic() - t0) * 1000)
+            result = {"groups": scrub([group]), "_meta": {"model": f"{llm.PROVIDER}:{llm.MODEL}", "duration_ms": ms,
+                                                           "created_at": now_iso(), "usage": usage, "mode": "join"}}
+            self.confirmed[key] = result
+            self.store.save(key, result)
+            self.stats["confirm_calls"] += 1
+            self.stats["last_ms"] = ms
+            log.info("join decided in %d ms: %d of %d newcomers joined %s", ms, len(joined), len(newcomers), prior["label"])
+        except (llm.LLMAuthError, llm.LLMModelError) as e:
+            self.disabled_reason = str(e)
+        except Exception as e:
+            log.warning("cluster join failed: %s", e)
+            self.failed[key] = time.monotonic()
+            self.stats["errors"] += 1
+            self.stats["last_error"] = f"{type(e).__name__}: {str(e)[:200]}"
+        finally:
+            self.inflight.discard(key)
+            self.on_change()
 
     def _request(self, key: str, members: list[dict]) -> None:
         if self.disabled_reason or key in self.inflight or time.monotonic() - self.failed.get(key, -1e9) < 60:
@@ -299,6 +399,14 @@ def _confirmed_cluster(members: list[dict], g: dict, pairs: dict, meta: dict) ->
             "shared_capabilities": g["shared_capabilities"], "rationale": g["rationale"], "confidence": g["confidence"],
             "variants": [{"agent_id": a["id"], "diff": g["variants"].get(a["id"], "")} for a in members],
             "confirmation": meta}
+
+
+def _joining_cluster(existing: list[dict], newcomers: list[dict], prior: dict, pairs: dict, pending: bool) -> dict:
+    members = sorted(existing, key=lambda a: a["first_seen"] or "") + newcomers
+    c = _confirmed_cluster(members, {**prior, "variants": {**prior["variants"]}}, pairs, {})
+    c["status"] = "confirming" if pending else "candidate"
+    c["joining_agent_ids"] = [a["id"] for a in newcomers]
+    return c
 
 
 def _unconfirmed_cluster(members: list[dict], pairs: dict, pending: bool) -> dict:

@@ -56,3 +56,17 @@ def test_cluster_id_is_anchored_on_earliest_member():
     after = _unconfirmed_cluster([a1, a2, live], {}, pending=True)
     assert before["id"] == after["id"] == "cl_first"
     assert after["status"] == "confirming" and len(after["member_agent_ids"]) == 3
+
+
+def test_bridge_agent_does_not_chain_two_jobs_together():
+    # triager: email job like a1/a2, but also posts to Slack and looks up CRM, like the pipeline pair
+    V2 = {"summarize customer emails": np.array([1.0, 0.0, 0.0]),
+          "triage support inbox": np.array([0.85, 0.0, 0.53]),
+          "weekly sales pipeline report": np.array([0.0, 1.0, 0.0])}
+    ags = [agent("a1", "summarize customer emails", ["Gmail"], ["read inbox"], "1"),
+           agent("a2", "summarize customer emails", ["Microsoft 365", "HubSpot"], ["read email", "crm lookup"], "2"),
+           agent("p1", "weekly sales pipeline report", ["Salesforce", "Slack"], ["post report to slack"], "3"),
+           agent("p2", "weekly sales pipeline report", ["HubSpot", "Slack"], ["post report to slack"], "4"),
+           agent("t", "triage support inbox", ["Gmail", "HubSpot", "Slack"], ["read inbox", "post digest to slack"], "5")]
+    groups, _ = candidate_groups(ags, FakeEmbedder(V2))
+    assert sorted(groups) == [["a1", "a2", "t"], ["p1", "p2"]]

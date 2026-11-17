@@ -105,7 +105,9 @@ class Stack:
         return self.api.get("/api/clusters").json()
 
     def agent_with(self, member: str, pred=lambda a: True) -> dict | None:
-        return next((a for a in self.agents() if any(m["name"] == member for m in a["members"]) and pred(a)), None)
+        """An agent on THIS laptop (not a fixture colleague's) with a member of that name."""
+        return next((a for a in self.agents() if a["owner"].get("in_directory") is False
+                     and any(m["name"] == member for m in a["members"]) and pred(a)), None)
 
     def settled(self) -> bool:
         st = self.stats()

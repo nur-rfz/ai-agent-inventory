@@ -8,3 +8,4 @@ ui/dist/
 sensor.yaml
 .env
 !fixtures/colleagues/**/.env
+ui/node_modules/

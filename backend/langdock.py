@@ -135,7 +135,8 @@ def decommission_for(members: list[dict]) -> list[dict]:
                 steps.append({"owner": owner, "step": f"Revoke API keys in {li['provider']} project '{li['name']}'"})
         for f in a["risk"]["flags"]:
             if f["severity"] == "high":
-                steps.append({"owner": owner, "step": f"Resolved by migration: {f['text']}"})
+                text = re.sub(r"https://www\.googleapis\.com/auth/", "", f["text"])
+                steps.append({"owner": owner, "step": "Resolved by migration: " + (text[:110] + "…" if len(text) > 110 else text)})
     return steps
 
 
@@ -368,7 +369,7 @@ class DraftService:
         try:
             user, _ = _draft_payload(cluster, members, raw_agents, integrations, schedules)
             out, usage = await self.llm.structured(DRAFT_PROMPT, user, DRAFT_SCHEMA, "langdock_agent", max_tokens=4000)
-            out = scrub(out)
+            out = {**scrub(out), "_member_ids": [a["id"] for a in members]}
             self.written[key] = out
             with session() as s:
                 s.merge(DraftCache(key=key, written=out, created_at=now_iso()))

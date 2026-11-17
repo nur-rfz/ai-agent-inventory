@@ -36,6 +36,7 @@ log = logging.getLogger("enrich")
 PROMPT_VERSION = "v4"
 ENABLED = os.environ.get("ENRICH_ENABLED", "1") not in ("0", "false", "no")
 CONCURRENCY = int(os.environ.get("ENRICH_CONCURRENCY", "4"))
+HOT_WORKERS = 2  # live discoveries (e.g. your GitHub + the new server) never queue behind each other
 MODEL_ID = f"{llm.PROVIDER}:{llm.MODEL}"
 REVIEW_THRESHOLD = 0.6
 IDENTITY_ONLY_MAX_CONFIDENCE = 0.5  # below the review threshold: a human confirms what these SaaS apps do
@@ -154,7 +155,7 @@ class Enricher:
 
     def start(self) -> None:
         self._tasks = [asyncio.create_task(self._worker()) for _ in range(CONCURRENCY)]
-        self._tasks.append(asyncio.create_task(self._worker(hot=True)))
+        self._tasks += [asyncio.create_task(self._worker(hot=True)) for _ in range(HOT_WORKERS)]
 
     async def stop(self) -> None:
         for t in self._tasks:

@@ -243,15 +243,45 @@ async def ingest(signals: list[SignalIn]) -> dict:
 
 
 @app.post("/api/admin/reset")
-async def reset() -> dict:
-    """Demo helper: wipe signals (the enrichment cache is kept). Local prototype only, no auth."""
+async def reset(keep_live_cache: bool = False) -> dict:
+    """Demo helper: wipe signals. LLM caches for the simulated org are kept (pre-warm); by default
+    everything cached about other agents (the live one) is dropped so it calls the LLM on camera.
+    Local prototype only, no auth."""
+    from scripts.seed import load
+
+    from .db import ClusterCache, DraftCache
+    from .enrich import EnrichmentCache
+
     with session() as s:
         n = len(inventory.signals)
         s.exec(delete(Signal))
         s.commit()
+    forgotten = 0
+    if not keep_live_cache:
+        fixture_ids = {a["id"] for a in build_agents([x for _, x in load()], directory(), policy())}
+        e, c, d = inventory.enricher, inventory.clusterer, inventory.drafts
+        with session() as s:
+            for row in s.query(EnrichmentCache).all():
+                if row.agent_id not in fixture_ids:
+                    s.delete(row); e.cards.pop(row.key, None); forgotten += 1
+            for row in s.query(ClusterCache).all():
+                ids = {i for g in row.result.get("groups", []) for i in g["member_ids"]}
+                if ids - fixture_ids:
+                    s.delete(row); c.confirmed.pop(row.key, None); forgotten += 1
+            for row in s.query(DraftCache).all():
+                if set(row.written.get("_member_ids", [])) - fixture_ids:
+                    s.delete(row); d.written.pop(row.key, None); forgotten += 1
+            s.commit()
+        inventory._seen_hash.clear()
+    from .db import DraftState
+
+    with session() as s:  # every demo starts unapproved
+        s.exec(delete(DraftState))
+        s.commit()
+    inventory.drafts.state.clear()
     inventory.clear()
     broker.publish("reset", {})
-    return {"deleted": n}
+    return {"deleted": n, "forgot_live_cache_entries": forgotten}
 
 
 @app.get("/api/signals")
@@ -281,7 +311,10 @@ def _graph(a: dict) -> dict:
         sid = f"s:{r['system']}"
         nodes.append({"id": sid, "type": "system", "label": r["system"]})
         via_members = {t["server"] for t in a["tools"] if t.get("system") == r["system"]}
-        targets = [f"m:{m['fingerprint']}" for m in a["members"] if m["name"] in via_members] or [f"a:{a['id']}"]
+        targets = [f"m:{m['fingerprint']}" for m in a["members"] if m["name"] in via_members]
+        if not targets:  # no tool says which server: hang it off the agent's own script/server, never an identity app
+            own = [f"m:{m['fingerprint']}" for m in a["members"] if m["kind"] in ("script", "mcp_server")]
+            targets = own[:1] or [f"a:{a['id']}"]
         for t in targets:
             edges.append({"from": t, "to": sid, "label": r["access"]})
     return {"nodes": nodes, "edges": edges}
@@ -389,3 +422,11 @@ def get_stats() -> dict:
 async def stream(request: Request) -> StreamingResponse:
     return StreamingResponse(broker.stream(request), media_type="text/event-stream",
                              headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
+
+
+# Serve the built UI (ui/dist) at / so the demo needs one web process. Dev: `npm run dev` in ui/.
+_UI = __import__("pathlib").Path(__file__).resolve().parent.parent / "ui" / "dist"
+if _UI.is_dir():
+    from fastapi.staticfiles import StaticFiles
+
+    app.mount("/", StaticFiles(directory=_UI, html=True), name="ui")

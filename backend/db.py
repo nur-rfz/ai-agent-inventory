@@ -30,3 +30,9 @@ def init_db() -> None:
 
 def session() -> Session:
     return Session(engine)
+
+
+class ClusterCache(SQLModel, table=True):
+    key: str = Field(primary_key=True)
+    result: dict = Field(sa_column=Column(JSON))
+    created_at: str

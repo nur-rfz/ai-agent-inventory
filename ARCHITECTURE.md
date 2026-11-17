@@ -128,3 +128,25 @@ signals ─▶ components ─▶ agents ─▶ reach · triggers · risk · rule
 `GET /api/agents`, `GET /api/agents/{id}` (evidence timeline + person→agent→server→system
 graph + evidence bundle), `POST /api/agents/{id}/enrich`, `GET /api/stats`; SSE events
 `agent`, `agent_removed`, `stats`, `signal`, `reset` on `/api/stream`.
+
+## Duplicate clusters (Phase 4, `backend/cluster.py`)
+```
+enriched "replace" agents ─▶ similarity = 0.6·cosine(job+name+capabilities) + 0.4·Jaccard(categories)
+                          ─▶ candidate groups (≥ 0.45, connected components)
+                          ─▶ LLM confirmation: genuine duplicate groups, base purpose, shared capabilities,
+                             per-member variant ("uses Outlook instead of Gmail", "adds CRM lookup")
+```
+- Each card has a `job` field: 2–5 vendor-neutral words, so the same job built with
+  Gmail, Outlook or a Python script reads the same.
+- Embeddings: `all-MiniLM-L6-v2`, local, loaded in a background thread at startup and
+  cached per text.
+- System categories (email, crm, chat, files, …): Gmail and Microsoft 365 mail are both
+  "email". Microsoft 365 counts as email or files depending on what the agent does.
+- Why hybrid: on the fixtures, plain embeddings put real duplicates at 0.38–0.84 and
+  unrelated pairs up to 0.48, so no single cosine cutoff works. The category term
+  separates them, and the LLM makes the final call (it can drop members that don't fit).
+- Cluster id = its earliest member's id. When the live agent joins, the existing card
+  updates in place: status `confirming` (immediate), then `confirmed`.
+- Confirmations are cached by membership + member evidence + model + prompt version.
+  Without an LLM, groups show as unconfirmed `candidate`s.
+- API: `GET /api/clusters`, `GET /api/clusters/{id}`; SSE event `clusters`.

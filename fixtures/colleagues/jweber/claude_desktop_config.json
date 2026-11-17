@@ -1,6 +1,6 @@
 {
   "mcpServers": {
-    "outlook": {
+    "customer-email-digest": {
       "command": "npx",
       "args": ["-y", "@softeria/ms-365-mcp-server", "--org-mode"]
     },

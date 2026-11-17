@@ -23,6 +23,7 @@ from common.schema import SignalIn, now_iso
 
 from . import enrich as enrich_mod
 from .db import Signal, init_db, session
+from .cluster import ClusterCacheStore, ClusterService
 from .enrich import Enricher, apply_card
 from .org import directory, policy
 from .resolve import build_agents, public
@@ -85,6 +86,8 @@ class Inventory:
         self.raw_agents: dict[str, dict] = {}
         self.agents: dict[str, dict] = {}
         self.enricher: Enricher | None = None
+        self.clusterer: ClusterService | None = None
+        self.clusters: list[dict] = []
         self._pending: asyncio.Task | None = None
         self._seen_hash: dict[str, tuple[str, float]] = {}
         self.last_recompute_ms = 0.0
@@ -139,6 +142,13 @@ class Inventory:
             new[a["id"]] = a
         self.raw_agents = new
         pub = {k: public(v) for k, v in new.items()}
+        clusters = self.clusterer.compute(pub)[0] if self.clusterer else []
+        in_cluster = {aid: c["id"] for c in clusters for aid in c["member_agent_ids"]}
+        for aid, a in pub.items():
+            a["cluster_id"] = in_cluster.get(aid)
+        if clusters != self.clusters:
+            self.broker.publish("clusters", clusters)
+        self.clusters = clusters
         for aid, a in pub.items():
             if self.agents.get(aid) != a:
                 self.broker.publish("agent", a)
@@ -167,8 +177,11 @@ def stats(inv: Inventory) -> dict:
         "people": len({a["owner"]["id"] for a in agents}),
         "risk": risk,
         "signals": len(inv.signals),
-        "duplicate_clusters": 0,  # Phase 4
+        "duplicate_clusters": len(inv.clusters),
+        "agents_in_clusters": sum(len(c["member_agent_ids"]) for c in inv.clusters),
+        "agents_consolidated": sum(len(c["member_agent_ids"]) - 1 for c in inv.clusters),
         "enrichment": inv.enricher.status() if inv.enricher else None,
+        "clustering": inv.clusterer.status() if inv.clusterer else None,
     }
 
 
@@ -183,6 +196,8 @@ async def lifespan(_: FastAPI):
     pol = asdict(policy())
     inventory.enricher = Enricher(inventory.on_card, {k: sorted(v) for k, v in pol.items()})
     inventory.enricher.start()
+    inventory.clusterer = ClusterService(lambda: inventory.schedule(0), ClusterCacheStore())
+    inventory.clusterer.start()
     inventory.recompute()
     yield
     await inventory.enricher.stop()
@@ -281,6 +296,19 @@ async def enrich_now(agent_id: str) -> dict:
         raise HTTPException(404, "unknown agent")
     inventory.enricher.request(a)
     return inventory.enricher.status()
+
+
+@app.get("/api/clusters")
+def list_clusters() -> list[dict]:
+    return inventory.clusters
+
+
+@app.get("/api/clusters/{cluster_id}")
+def cluster_detail(cluster_id: str) -> dict:
+    c = next((c for c in inventory.clusters if c["id"] == cluster_id), None)
+    if not c:
+        raise HTTPException(404, "unknown cluster")
+    return {**c, "agents": [inventory.agents[i] for i in c["member_agent_ids"] if i in inventory.agents]}
 
 
 @app.get("/api/stats")

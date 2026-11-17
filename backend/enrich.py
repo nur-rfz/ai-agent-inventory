@@ -33,7 +33,7 @@ from .db import session
 
 log = logging.getLogger("enrich")
 
-PROMPT_VERSION = "v3"
+PROMPT_VERSION = "v4"
 ENABLED = os.environ.get("ENRICH_ENABLED", "1") not in ("0", "false", "no")
 CONCURRENCY = int(os.environ.get("ENRICH_CONCURRENCY", "4"))
 MODEL_ID = f"{llm.PROVIDER}:{llm.MODEL}"
@@ -61,11 +61,12 @@ _IDS = {"type": "array", "items": {"type": "string"}}
 CARD_SCHEMA: dict[str, Any] = {
     "type": "object",
     "additionalProperties": False,
-    "required": ["name", "purpose", "purpose_rationale", "purpose_evidence", "capabilities", "data_reach",
+    "required": ["name", "job", "purpose", "purpose_rationale", "purpose_evidence", "capabilities", "data_reach",
                  "triggers", "classification", "classification_rationale", "instructions_summary",
                  "confidence", "confidence_rationale"],
     "properties": {
         "name": _STR,
+        "job": _STR,
         "purpose": _STR,
         "purpose_rationale": _STR,
         "purpose_evidence": _IDS,
@@ -94,6 +95,7 @@ You get an evidence bundle for ONE agent, gathered by endpoint sensors and ident
 
 How to fill each field:
 - name: 2-5 words naming what the agent DOES for the business, not the tool it runs in ("Customer email summarizer", "Weekly pipeline report", "Billing-service coding assistant"). No person names.
+- job: the core recurring job in 2-5 lowercase, vendor-neutral words, with no product, system or team names ("summarize customer emails", "weekly sales pipeline report", "review pull requests", "answer questions on documents"). Two agents built by different people for the same job must get the same job text even if they use different tools (Gmail vs Outlook, script vs chat app).
 - purpose: one sentence: what it does, for whom, with which systems. Say what is inferred vs. visible when that matters.
 - purpose_rationale: one short sentence on which evidence decided it. purpose_evidence: the ids you relied on.
 - capabilities: 3-7 short verb phrases a replacement must cover ("read unread customer emails", "summarize each thread", "look up the account in CRM", "post a digest to Slack"). Base them on tools, code and prompts. These are used to find duplicate agents built by different people, so phrase them in plain, vendor-neutral terms where possible ("read inbox", not "call list-mail-messages").
@@ -243,6 +245,7 @@ def apply_card(agent: dict, card: dict | None, enrich_status: dict) -> dict:
     agent["name"] = card["name"]
     agent["purpose"] = card["purpose"]
     agent["capabilities"] = card["capabilities"]
+    agent["job"] = card.get("job")
     agent["instructions_summary"] = card["instructions_summary"]
     agent["confidence"] = round(float(card["confidence"]), 2)
     if agent["surface"] == "saas" and agent["classification"] != "ok":

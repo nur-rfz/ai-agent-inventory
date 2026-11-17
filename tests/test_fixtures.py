@@ -35,7 +35,7 @@ def test_scenario_coverage():
     scripts = {(s["host"], Path(s["raw"]["path"]).name) for s in evs if s["kind"] == "code_import" and s["raw"]["sdks"]}
     # 3x "summarize customer emails": Gmail MCP, Outlook MCP (+ CRM), Python + OpenAI + Graph
     assert ("mpatel-mbp", "inbox-summaries") in configs
-    assert ("jweber-mbp", "outlook") in configs and ("jweber-mbp", "hubspot") in configs
+    assert ("jweber-mbp", "customer-email-digest") in configs and ("jweber-mbp", "hubspot") in configs
     assert ("praman-mbp", "summarize_customer_emails.py") in scripts
     # 2x weekly pipeline report: Salesforce + Slack
     assert ("lhoffmann-mbp", "weekly_pipeline_report.py") in scripts

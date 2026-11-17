@@ -34,8 +34,8 @@ def test_fixture_org_resolves_to_expected_agents():
     assert {r["system"] for r in maya["data_reach"]} == {"Gmail"}
     assert [l["name"] for l in maya["linked_identity"]] == ["gmail-mcp (maya personal project)"]
 
-    jonas = by_name(agents, "Jonas Weber", "outlook")
-    assert {m["name"] for m in jonas["members"]} == {"outlook", "hubspot"}  # one agent, not two
+    jonas = by_name(agents, "Jonas Weber", "customer-email-digest")
+    assert {m["name"] for m in jonas["members"]} == {"customer-email-digest", "hubspot"}  # one agent, not two
     assert {r["system"] for r in jonas["data_reach"]} == {"Microsoft 365", "HubSpot"}
 
     priya = by_name(agents, "Priya Raman", "summarize_customer_emails")

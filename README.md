@@ -48,6 +48,7 @@ python -m pytest -q                       # redaction + parser tests
 python scripts/acceptance_phase1.py       # end-to-end, in a throwaway HOME
 python scripts/acceptance_phase2.py       # replay the org, verify live arrival + coverage
 python scripts/acceptance_phase3.py       # live Cursor edit -> split agent + card within 5s
+python scripts/acceptance_phase4.py       # duplicate clusters; live agent joins the email cluster
 python -m sensor.paths                    # which MCP config files exist on this OS
 ```
 

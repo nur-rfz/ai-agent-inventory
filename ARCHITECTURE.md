@@ -150,3 +150,22 @@ enriched "replace" agents ─▶ similarity = 0.6·cosine(job+name+capabilities)
 - Confirmations are cached by membership + member evidence + model + prompt version.
   Without an LLM, groups show as unconfirmed `candidate`s.
 - API: `GET /api/clusters`, `GET /api/clusters/{id}`; SSE event `clusters`.
+
+## Langdock draft + export (Phase 5, `backend/langdock.py`)
+What Langdock's public API supports (read on docs.langdock.com before building, Nov 2026):
+
+| Need | Langdock | How we use it |
+|---|---|---|
+| Shared agent | `POST /agent/v1/create` (name ≤80, description ≤800, instruction ≤50k, emoji, inputType, conversationStarters, …), `POST /agent/v1/publish` | created + published after approval |
+| Cron / recurring trigger | Scheduled Tasks `POST /automations/v1` (frequency DAILY/WEEKDAYS/WEEKLY/MONTHLY/SELECTED_WEEKDAYS, timeOfDay, timezone, assistantId) | one task per scheduled variant; cron mapped exactly. The Workflow API also exists, but its graph schema is the builder's own, so we don't generate workflows. |
+| Gmail/Outlook/HubSpot/Salesforce/Slack/SharePoint | native integrations (Integration Directory) | mapped from the cluster's systems; enabling them and connecting OAuth is an admin step ("OAuth connections can't be pre-selected via the API") |
+| MCP servers | UI only (URL, auth, "List Server Features"); private URLs blocked | admin step if a cluster needs a custom server |
+
+Draft = deterministic mapping (integrations, schedules, decommission checklist, the exact
+API requests) + LLM-written text (base instructions, one section per variant, starters,
+knowledge suggestions), cached per cluster membership. Members' visible prompts are reused.
+
+Flow: `GET /api/clusters/{id}/draft` → `POST …/approve` → `POST …/create`. Create sends the
+requests only with `LANGDOCK_API_KEY` set; without it, it returns a dry run listing them.
+Approval is tied to the draft's content hash, so a changed draft needs re-approval.
+Exports: `GET …/export.json` (requests + manual steps), `GET …/export.md` (spec).

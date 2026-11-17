@@ -15,7 +15,7 @@ from typing import AsyncIterator
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import StreamingResponse
+from fastapi.responses import JSONResponse, PlainTextResponse, StreamingResponse
 from sqlmodel import delete, select
 
 from common.redact import scrub
@@ -25,6 +25,7 @@ from . import enrich as enrich_mod
 from .db import Signal, init_db, session
 from .cluster import ClusterCacheStore, ClusterService
 from .enrich import Enricher, apply_card
+from .langdock import DraftService, execute, to_markdown
 from .org import directory, policy
 from .resolve import build_agents, public
 
@@ -88,6 +89,8 @@ class Inventory:
         self.enricher: Enricher | None = None
         self.clusterer: ClusterService | None = None
         self.clusters: list[dict] = []
+        self.drafts: DraftService | None = None
+        self.draft_cache: dict[str, dict] = {}
         self._pending: asyncio.Task | None = None
         self._seen_hash: dict[str, tuple[str, float]] = {}
         self.last_recompute_ms = 0.0
@@ -146,6 +149,12 @@ class Inventory:
         in_cluster = {aid: c["id"] for c in clusters for aid in c["member_agent_ids"]}
         for aid, a in pub.items():
             a["cluster_id"] = in_cluster.get(aid)
+        if self.drafts:
+            for c in clusters:
+                d = self.drafts.draft(c, [pub[i] for i in c["member_agent_ids"]], self.raw_agents)
+                self.draft_cache[c["id"]] = d
+                c["draft"] = {"status": d["status"], "writing": d["writing"], "name": d["name"],
+                              "written_by": d["written_by"]}
         if clusters != self.clusters:
             self.broker.publish("clusters", clusters)
         self.clusters = clusters
@@ -198,6 +207,7 @@ async def lifespan(_: FastAPI):
     inventory.enricher.start()
     inventory.clusterer = ClusterService(lambda: inventory.schedule(0), ClusterCacheStore())
     inventory.clusterer.start()
+    inventory.drafts = DraftService(lambda: inventory.schedule(0))
     inventory.recompute()
     yield
     await inventory.enricher.stop()
@@ -309,6 +319,65 @@ def cluster_detail(cluster_id: str) -> dict:
     if not c:
         raise HTTPException(404, "unknown cluster")
     return {**c, "agents": [inventory.agents[i] for i in c["member_agent_ids"] if i in inventory.agents]}
+
+
+def _draft(cluster_id: str) -> dict:
+    inventory.recompute()
+    d = inventory.draft_cache.get(cluster_id)
+    if not d:
+        raise HTTPException(404, "unknown cluster")
+    return d
+
+
+@app.get("/api/clusters/{cluster_id}/draft")
+def get_draft(cluster_id: str) -> dict:
+    return _draft(cluster_id)
+
+
+@app.post("/api/clusters/{cluster_id}/approve")
+async def approve_draft(cluster_id: str, request: Request) -> dict:
+    body = await request.json() if (await request.body()) else {}
+    d = _draft(cluster_id)
+    if d["writing"]:
+        raise HTTPException(409, "draft is still being written")
+    inventory.drafts.set_state(cluster_id, status="approved", draft_key=d["draft_key"],
+                               approved_by=(body or {}).get("approved_by", "IT admin"), approved_at=now_iso())
+    inventory.schedule(0)
+    return _draft(cluster_id)
+
+
+@app.post("/api/clusters/{cluster_id}/create")
+async def create_in_langdock(cluster_id: str) -> dict:
+    """Send the planned requests to Langdock. Requires approval of this exact draft + LANGDOCK_API_KEY."""
+    import os
+
+    d = _draft(cluster_id)
+    if d["status"] not in ("approved", "failed"):
+        raise HTTPException(409, "approve the draft first (and re-approve after it changes)")
+    key = os.environ.get("LANGDOCK_API_KEY")
+    if not key:
+        return {"status": "dry_run", "reason": "LANGDOCK_API_KEY not set: nothing was sent. These are the exact requests:",
+                "requests": d["api_requests"], "manual_steps": d["manual_steps"]}
+    log_ = await execute(d["api_requests"], key)
+    ok = all(200 <= e["status"] < 300 for e in log_) and len(log_) == len(d["api_requests"])
+    agent_id = next((e.get("agent_id") for e in log_ if e.get("agent_id")), None)
+    inventory.drafts.set_state(cluster_id, status="created" if ok else "failed", created_log=log_,
+                               langdock_agent_id=agent_id, draft_key=d["draft_key"])
+    inventory.schedule(0)
+    return {"status": "created" if ok else "failed", "log": log_, "langdock_agent_id": agent_id}
+
+
+@app.get("/api/clusters/{cluster_id}/export.json")
+def export_json(cluster_id: str) -> JSONResponse:
+    d = _draft(cluster_id)
+    return JSONResponse({k: v for k, v in d.items() if k not in ("writing", "write_error")},
+                        headers={"Content-Disposition": f'attachment; filename="langdock-{cluster_id}.json"'})
+
+
+@app.get("/api/clusters/{cluster_id}/export.md")
+def export_md(cluster_id: str) -> PlainTextResponse:
+    return PlainTextResponse(to_markdown(_draft(cluster_id)), media_type="text/markdown",
+                             headers={"Content-Disposition": f'attachment; filename="langdock-{cluster_id}.md"'})
 
 
 @app.get("/api/stats")

@@ -36,3 +36,15 @@ class ClusterCache(SQLModel, table=True):
     key: str = Field(primary_key=True)
     result: dict = Field(sa_column=Column(JSON))
     created_at: str
+
+
+class DraftCache(SQLModel, table=True):
+    key: str = Field(primary_key=True)
+    written: dict = Field(sa_column=Column(JSON))
+    created_at: str
+
+
+class DraftState(SQLModel, table=True):
+    cluster_id: str = Field(primary_key=True)
+    state: dict = Field(sa_column=Column(JSON))
+    updated_at: str

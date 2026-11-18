@@ -86,13 +86,24 @@ def main() -> int:
         print(f"newest event: {max(s['ts'] for _, s in events)}")
         return 0
 
-    api = httpx.Client(base_url=a.backend, timeout=10)
+    api = httpx.Client(base_url=a.backend, timeout=30)
+
+    def post(batch: list[dict]) -> None:
+        for attempt in range(5):  # the backend can stall briefly while it loads the embedding model
+            try:
+                api.post("/api/signals", json=batch).raise_for_status()
+                return
+            except (httpx.TimeoutException, httpx.ConnectError):
+                if attempt == 4:
+                    raise
+                time.sleep(1 + attempt)
+
     if a.reset:
         api.post("/api/admin/reset").raise_for_status()
         print("backend reset")
     if not a.replay:
         for i in range(0, len(events), 200):
-            api.post("/api/signals", json=[s for _, s in events[i:i + 200]]).raise_for_status()
+            post([s for _, s in events[i:i + 200]])
         print(f"seeded {len(events)} signals")
         return 0
 
@@ -105,7 +116,7 @@ def main() -> int:
             batch.append(events[i][1])
             i += 1
         if batch:
-            api.post("/api/signals", json=batch).raise_for_status()
+            post(batch)
             sent += len(batch)
             hosts = sorted({s["host"] for s in batch})
             print(f"  t={due:5.1f}s  +{len(batch):3d}  ({', '.join(hosts)})", flush=True)

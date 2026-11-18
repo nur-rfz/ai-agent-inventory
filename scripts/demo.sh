@@ -35,7 +35,10 @@ $PY -m uvicorn backend.app:app --host 127.0.0.1 --port "$PORT" --log-level warni
   > data/logs/backend.log 2>&1 & pids+=($!)
 for i in $(seq 1 60); do curl -sf "http://127.0.0.1:$PORT/api/health" >/dev/null && break; sleep 0.5; done
 curl -sf -X POST "http://127.0.0.1:$PORT/api/admin/reset" >/dev/null
-echo "Backend + UI: http://127.0.0.1:$PORT"
+echo "Backend + UI: http://127.0.0.1:$PORT (loading the embedding model…)"
+for i in $(seq 1 120); do  # replaying while torch loads can stall requests
+  curl -sf "http://127.0.0.1:$PORT/api/stats" | grep -q '"embedder_ready": *true' && break; sleep 1
+done
 
 $PY -m sensor.main > data/logs/sensor.log 2>&1 & pids+=($!)
 echo "Sensor running on this machine (log: data/logs/sensor.log)"

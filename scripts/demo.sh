@@ -50,7 +50,11 @@ $PY scripts/demo_mcp_server.py > data/logs/demo_mcp.log 2>&1 & pids+=($!)
 $PY -m uvicorn backend.app:app --host 127.0.0.1 --port "$PORT" --log-level warning --timeout-graceful-shutdown 1 \
   > data/logs/backend.log 2>&1 & pids+=($!)
 for i in $(seq 1 60); do curl -sf "http://127.0.0.1:$PORT/api/health" >/dev/null && break; sleep 0.5; done
-curl -sf -X POST "http://127.0.0.1:$PORT/api/admin/reset" >/dev/null
+if ! curl -sf -X POST "http://127.0.0.1:$PORT/api/admin/reset" >/dev/null; then
+  echo "❌ Backend did not start. Last lines of data/logs/backend.log:"; tail -n 15 data/logs/backend.log
+  echo "   If it's a missing module: rm -rf .venv && scripts/demo.sh  (reinstalls with Python 3.11–3.13)"
+  exit 1
+fi
 echo "Backend + UI: http://127.0.0.1:$PORT (loading the embedding model…)"
 for i in $(seq 1 120); do  # replaying while torch loads can stall requests
   curl -sf "http://127.0.0.1:$PORT/api/stats" | grep -q '"embedder_ready": *true' && break; sleep 1

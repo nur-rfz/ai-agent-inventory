@@ -15,8 +15,24 @@ ROOT=$(pwd)
 PORT=${PORT:-8787}
 MODE=${1:-replay}
 
-if [ ! -x .venv/bin/python ]; then
-  echo "Setting up Python venv…"; python3 -m venv .venv && .venv/bin/pip install -q -r requirements.txt
+if [ ! -f .venv/.installed ]; then
+  # PyTorch (via sentence-transformers) has no wheels for the newest Python yet, and on
+  # Intel Macs only up to 3.12: prefer 3.12, then 3.13 / 3.11.
+  BASE_PY=${PYTHON:-}
+  if [ -z "$BASE_PY" ]; then
+    for c in python3.12 python3.13 python3.11 /opt/homebrew/bin/python3.12 /usr/local/bin/python3.12; do
+      command -v "$c" >/dev/null 2>&1 && { BASE_PY=$c; break; }
+    done
+  fi
+  if [ -z "$BASE_PY" ]; then
+    echo "❌ Needs Python 3.11–3.13 (found: $(python3 --version 2>&1)). PyTorch has no build for newer Python yet."
+    echo "   macOS: brew install python@3.12   then re-run scripts/demo.sh   (or set PYTHON=/path/to/python3.12)"
+    exit 1
+  fi
+  echo "Setting up Python venv with $BASE_PY ($($BASE_PY --version))…"
+  rm -rf .venv
+  "$BASE_PY" -m venv .venv && .venv/bin/pip install -q --upgrade pip && .venv/bin/pip install -q -r requirements.txt
+  touch .venv/.installed
 fi
 PY=$ROOT/.venv/bin/python
 if [ ! -f ui/dist/index.html ]; then

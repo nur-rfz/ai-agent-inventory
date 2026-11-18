@@ -15,6 +15,7 @@ Screenshots: [inventory](screenshots/1-inventory.png) ·
 [Langdock preview](screenshots/4-langdock-preview.png)
 
 ## Run the demo (one command)
+Needs Python 3.11–3.13 (PyTorch has no build for 3.14 yet; on macOS `brew install python@3.12`) and Node 18+.
 ```bash
 export OPENROUTER_API_KEY=...          # LLM for cards/clusters/drafts (openai/gpt-4o-mini); without it: rule-based cards
 export DEMO_OWNER_NAME="Your Name"     # how your laptop shows up as owner
@@ -57,7 +58,7 @@ Cursor config edit, as median (max):
 
 ## Development
 ```bash
-python3 -m venv .venv && . .venv/bin/activate && pip install -r requirements.txt
+python3.12 -m venv .venv && . .venv/bin/activate && pip install -r requirements.txt
 python -m uvicorn backend.app:app --port 8787    # API + built UI
 (cd ui && npm install && npm run dev)            # UI with hot reload on :5173 (proxies /api)
 python -m sensor.main                            # sensor

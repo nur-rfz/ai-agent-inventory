@@ -10,6 +10,10 @@ about 5s later it has a purpose, owner, tools, reach and risk → it joins "Cust
 summarizer" (now **4 people built the same agent**) → one click previews a single
 consolidated Langdock agent → Approve → Create.
 
+Screenshots: [inventory](screenshots/1-inventory.png) ·
+[agent detail](screenshots/2-agent-detail.png) · [duplicates](screenshots/3-duplicates.png) ·
+[Langdock preview](screenshots/4-langdock-preview.png)
+
 ## Run the demo (one command)
 ```bash
 export OPENROUTER_API_KEY=...          # LLM for cards/clusters/drafts (openai/gpt-4o-mini); without it: rule-based cards
